@@ -1,5 +1,5 @@
 import { removeSplash } from "../ui/loader.js";
-import { initInputSystem } from "../core/input/inputManager.js";
+import { initInputSystem } from "../core/input/InputManager.js";
 import { initPointer } from "../core/input/pointer.js";
 import { startTickLoop } from "../core/tickLoop.js";
 import { initConsole } from "../console/consoleUI.js";
