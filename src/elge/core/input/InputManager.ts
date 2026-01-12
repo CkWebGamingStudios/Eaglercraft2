@@ -11,7 +11,6 @@ export class InputManager {
     constructor(collector: InputCollector) {
         this.collector = collector;
     }
-
     buildFrame(tick: number): InputFrame {
         const state = this.collector.state;
         const actions: Record<string, number | boolean> = {};
@@ -36,3 +35,8 @@ export class InputManager {
         return { tick, actions };
     }
 }
+// Add this to the end of InputManager.ts
+export function initInputSystem(collector: any) {
+    return new InputManager(collector);
+}
+
