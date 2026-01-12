@@ -1,4 +1,5 @@
-export function start({ context, capabilities }) {
-import { startRuntime } from "../runtime/runtime.js";
+import { startRuntime } from "../runtime/runtime.js"; // FIXED: Moved to the top
 
-startRuntime({ context, capabilities });
+export function start({ context, capabilities }) {
+  startRuntime({ context, capabilities });
+}
