@@ -1,0 +1,29 @@
+#elge-navbar {
+    height: 48px;
+    background: #0b1220;
+    color: #eaf6ff;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+}
+
+#elge-layout {
+    display: flex;
+    height: calc(100vh - 48px);
+}
+
+#elge-sidebar {
+    width: 200px;
+    background: #070c16;
+    padding: 8px;
+}
+
+#elge-sidebar button {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#elge-main {
+    flex: 1;
+    padding: 16px;
+}

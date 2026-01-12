@@ -1,55 +1,37 @@
-const canvas = document.getElementById("elge-canvas");
-const ctx = canvas.getContext("2d");
+import { scanContext } from "./contextScanner.js";
+import { resolveIntent } from "./intentResolver.js";
+import { scanCapabilities } from "./capabilityScanner.js";
 
-let t = 0;
-let currentStatus = "Initializing…";
+import { setLoaderStatus } from "../ui/loader.js";
+import { dispatch } from "./dispatcher.js";
 
-export function setSplashStatus(text) {
-  currentStatus = text;
-}
+import { startRuntime } from "../runtime/runtime.js";
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+(async function ELGE_BOOT() {
+  try {
+    // STEP 1: Environment scan
+    setLoaderStatus("Scanning environment");
+    const context = scanContext();
 
-  const cx = 256;
-  const cy = 256;
+    // STEP 2: Capability detection
+    setLoaderStatus("Detecting system capabilities");
+    const capabilities = scanCapabilities();
 
-  // Outer rotating ring
-  ctx.strokeStyle = "#2979ff";
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 90, t, t + Math.PI * 1.5);
-  ctx.stroke();
+    // STEP 3: Resolve intent (where user is going)
+    setLoaderStatus("Resolving destination");
+    const intent = resolveIntent(context, capabilities);
 
-  // Inner ring
-  ctx.strokeStyle = "#00e5ff";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 65, -t * 1.5, -t * 1.5 + Math.PI);
-  ctx.stroke();
+    // STEP 4: Prepare runtime / module
+    setLoaderStatus("Preparing runtime");
+    await dispatch(intent, capabilities);
+    // dispatch stays for future (multiplayer, editor, etc.)
 
-  // V core
-  ctx.strokeStyle = "#eaf6ff";
-  ctx.lineWidth = 10;
-  ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(200, 180);
-  ctx.lineTo(256, 320);
-  ctx.lineTo(312, 180);
-  ctx.stroke();
+    // STEP 5: Start engine runtime
+    setLoaderStatus("Starting engine");
+    startRuntime({ context, capabilities });
 
-  t += 0.02;
-  requestAnimationFrame(draw);
-}
-
-draw();
-
-// Status rendering (NO interval anymore)
-const statusEl = document.getElementById("elge-status");
-
-function updateStatus() {
-  statusEl.textContent = currentStatus;
-  requestAnimationFrame(updateStatus);
-}
-
-updateStatus();
+  } catch (err) {
+    console.error("[ELGE BOOT FAILURE]", err);
+    setLoaderStatus("Fatal error — cannot start");
+  }
+})();

@@ -1,4 +1,4 @@
-import { executeCommand } from "../core/commandBus.js";
+import { executeCommand } from "../../core/commandBus.js";
 
 export function initPointer() {
   window.addEventListener("mousemove", e => {

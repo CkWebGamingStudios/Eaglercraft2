@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
-
+import "./elge/runtime/ui/hub.css";
 import "./elge/splash.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
