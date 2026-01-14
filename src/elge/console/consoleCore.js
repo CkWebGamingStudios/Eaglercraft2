@@ -1,5 +1,5 @@
 import { advancementEvent } from "../advancements/events/advancementEvents.js";
-import { getCommand } from "./commandRegistry.ts";
+import { getCommand } from "./CommandRegistry.ts";
 
 export function executeCommand(input) {
   const parts = input.trim().split(" ");
