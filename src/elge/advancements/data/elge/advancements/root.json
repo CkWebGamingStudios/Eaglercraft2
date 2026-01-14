@@ -1,0 +1,8 @@
+{
+  "id": "elge:root",
+  "criteria": {
+    "engine_started": {
+      "trigger": "elge:engine_started"
+    }
+  }
+}

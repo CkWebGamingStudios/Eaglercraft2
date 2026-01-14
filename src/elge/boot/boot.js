@@ -6,6 +6,10 @@ import { setLoaderStatus } from "../ui/loader.js";
 import { dispatch } from "./dispatcher.js";
 
 import { startRuntime } from "../runtime/runtime.js";
+import { advancementEvent } from "../advancements/events/advancementEvents.js";
+
+
+advancementEvent("elge:engine_started");
 
 (async function ELGE_BOOT() {
   try {

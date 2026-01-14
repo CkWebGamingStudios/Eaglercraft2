@@ -1,15 +1,21 @@
-import { registerCommand } from "../core/commandBus.js";
+import { advancementEvent } from "../advancements/events/advancementEvents.js";
+import { getCommand } from "./commandRegistry.ts";
 
-const registry = {};
+export function executeCommand(input) {
+  const parts = input.trim().split(" ");
+  const commandName = parts[0];
+  const args = parts.slice(1);
 
-export function registerConsoleCommand(name, fn) {
-  registry[name] = fn;
-}
+  const command = getCommand(commandName);
+  if (!command) {
+    return;
+  }
 
-export function executeConsoleCommand(input) {
-  const [cmd, ...args] = input.trim().split(" ");
-  const fn = registry[cmd];
+  // Execute command logic
+  command.execute(args);
 
-  if (!fn) return `Unknown command: ${cmd}`;
-  return fn(args);
+  // 🔹 ADVANCEMENT TRIGGER (THIS IS THE LINE)
+  advancementEvent("elge:console_command", {
+    command: commandName
+  });
 }
