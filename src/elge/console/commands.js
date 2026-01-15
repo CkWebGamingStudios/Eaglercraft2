@@ -1,18 +1,16 @@
 import { registerConsoleCommand } from "./consoleCore.js";
 
 export function registerDefaultCommands() {
-
-  registerConsoleCommand("help", () => {
-    return "Commands: help, version, clear";
+  registerConsoleCommand("help", {
+    description: "List available commands",
+    execute() {
+      console.log("Available commands: help");
+    }
   });
 
-  registerConsoleCommand("version", () => {
-    return "ELGE / Eaglercraft2 Engine";
+  registerConsoleCommand("version", {
+    execute() {
+      console.log("ELGE Engine v0.1");
+    }
   });
-
-  registerConsoleCommand("clear", () => {
-    console.clear();
-    return "";
-  });
-
 }

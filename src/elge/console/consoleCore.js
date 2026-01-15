@@ -1,21 +1,26 @@
-import { advancementEvent } from "../advancements/events/advancementEvents.js";
-import { getCommand } from "./CommandRegistry.ts";
+import { getCommand, registerCommand } from "./CommandRegistry.ts";
 
-export function executeCommand(input) {
-  const parts = input.trim().split(" ");
-  const commandName = parts[0];
+export function registerConsoleCommand(name, command) {
+  registerCommand(name, command);
+}
+
+export function executeConsoleCommand(input) {
+  if (!input.trim()) return;
+
+  const parts = input.trim().split(/\s+/);
+  const name = parts[0];
   const args = parts.slice(1);
 
-  const command = getCommand(commandName);
+  const command = getCommand(name);
+
   if (!command) {
+    console.warn(`[ELGE] Unknown command: ${name}`);
     return;
   }
 
-  // Execute command logic
-  command.execute(args);
-
-  // 🔹 ADVANCEMENT TRIGGER (THIS IS THE LINE)
-  advancementEvent("elge:console_command", {
-    command: commandName
-  });
+  try {
+    command.execute(args);
+  } catch (err) {
+    console.error(`[ELGE] Command error:`, err);
+  }
 }

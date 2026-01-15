@@ -1,23 +1,14 @@
-// src/elge/console/CommandRegistry.ts
+export type ConsoleCommand = {
+  description?: string;
+  execute: (args: string[]) => void;
+};
 
-export type CommandHandler = (args: string[]) => void;
+const registry = new Map<string, ConsoleCommand>();
 
-export class CommandRegistry {
-    private handlers = new Map<string, CommandHandler>();
+export function registerCommand(name: string, command: ConsoleCommand) {
+  registry.set(name.toLowerCase(), command);
+}
 
-    register(name: string, handler: CommandHandler) {
-        this.handlers.set(name.toLowerCase(), handler);
-    }
-
-    execute(name: string, args: string[]) {
-        const handler = this.handlers.get(name.toLowerCase());
-        if (!handler) {
-            throw new Error(`Unknown command: ${name}`);
-        }
-        handler(args);
-    }
-
-    has(name: string) {
-        return this.handlers.has(name.toLowerCase());
-    }
+export function getCommand(name: string): ConsoleCommand | undefined {
+  return registry.get(name.toLowerCase());
 }
