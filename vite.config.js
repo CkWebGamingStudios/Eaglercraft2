@@ -10,12 +10,7 @@ export default defineConfig({
       },
     }),
     Sitemap({
-      hostname: 'https://eaglercraft2ck.pages.dev',
-      // Add all your subpages here so Google knows they exist
-      dynamicRoutes: [
-        '/editor',
-        // '/about', 
-        // '/contact'
+      hostname: 'https://eaglercraft2ck.pages.dev',      
       ],
     }),
   ],
