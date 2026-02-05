@@ -6,12 +6,12 @@ export default defineConfig({
   plugins: [
     react({
       babel: {
-        plugins: ['babel-plugin-react-compiler'],
+        // MUST be an array
+        plugins: [['babel-plugin-react-compiler', { target: '18' }]], 
       },
     }),
     Sitemap({
-      hostname: 'https://eaglercraft2ck.pages.dev',      
-      ],
+      hostname: 'https://eaglercraft2ck.pages.dev',
     }),
   ],
 })

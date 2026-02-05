@@ -1,14 +1,15 @@
-export type ConsoleCommand = {
-  description?: string;
-  execute: (args: string[]) => void;
-};
+type CommandHandler = (args: string[]) => void;
 
-const registry = new Map<string, ConsoleCommand>();
+const commands = new Map<string, CommandHandler>();
 
-export function registerCommand(name: string, command: ConsoleCommand) {
-  registry.set(name.toLowerCase(), command);
+export function registerCommand(name: string, handler: CommandHandler) {
+  commands.set(name, handler);
 }
 
-export function getCommand(name: string): ConsoleCommand | undefined {
-  return registry.get(name.toLowerCase());
+export function getCommand(name: string) {
+  return commands.get(name);
+}
+
+export function getAllCommands() {
+  return Array.from(commands.keys());
 }

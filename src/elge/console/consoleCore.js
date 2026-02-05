@@ -1,26 +1,20 @@
-import { getCommand, registerCommand } from "./CommandRegistry.ts";
-
-export function registerConsoleCommand(name, command) {
-  registerCommand(name, command);
-}
+import { getCommand } from "./commandRegistry.ts";
+import { advancementEvent } from "../advancements/events/advancementEvents.js";
 
 export function executeConsoleCommand(input) {
-  if (!input.trim()) return;
-
-  const parts = input.trim().split(/\s+/);
+  const parts = input.trim().split(" ");
   const name = parts[0];
   const args = parts.slice(1);
 
-  const command = getCommand(name);
-
-  if (!command) {
-    console.warn(`[ELGE] Unknown command: ${name}`);
+  const cmd = getCommand(name);
+  if (!cmd) {
+    console.warn("[ELGE CONSOLE] Unknown command:", name);
     return;
   }
 
-  try {
-    command.execute(args);
-  } catch (err) {
-    console.error(`[ELGE] Command error:`, err);
-  }
+  cmd(args);
+
+  advancementEvent("elge:console_command", {
+    command: name
+  });
 }

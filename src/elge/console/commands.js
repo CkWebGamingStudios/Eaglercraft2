@@ -1,16 +1,20 @@
-import { registerConsoleCommand } from "./consoleCore.js";
+import { registerCommand } from "./commandRegistry.ts";
+import { ELGE } from "../master/ELGE.js";
 
 export function registerDefaultCommands() {
-  registerConsoleCommand("help", {
-    description: "List available commands",
-    execute() {
-      console.log("Available commands: help");
-    }
+  registerCommand("help", () => {
+    console.log("Available commands: help, start, home, game");
   });
 
-  registerConsoleCommand("version", {
-    execute() {
-      console.log("ELGE Engine v0.1");
-    }
+  registerCommand("start", () => {
+    ELGE.engine.start();
+  });
+
+  registerCommand("home", () => {
+    ELGE.redirect.page("home");
+  });
+
+  registerCommand("game", () => {
+    ELGE.redirect.page("game");
   });
 }
