@@ -1,4 +1,4 @@
-import { registerCommand } from "./commandRegistry.ts";
+import { registerCommand } from "./CommandRegistry.ts";
 import { ELGE } from "../master/ELGE.js";
 
 export function registerDefaultCommands() {

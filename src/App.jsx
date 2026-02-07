@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import Home from "./pages/Home.jsx";
 
 /**
  * App is intentionally thin.
@@ -14,23 +15,26 @@ export default function App() {
   }, []);
 
   return (
-    <div id="elge-splash">
-      <canvas
-        id="elge-canvas"
-        width="512"
-        height="512"
-      />
+    <>
+      <Home />
+      <div id="elge-splash">
+        <canvas
+          id="elge-canvas"
+          width="512"
+          height="512"
+        />
 
-      <div className="elge-text">
-        <div className="elge-title">ELGE</div>
-        <div className="elge-sub">Low-End Game Engine</div>
-        <div
-          id="elge-status"
-          className="elge-status"
-        >
-          Initializing…
+        <div className="elge-text">
+          <div className="elge-title">ELGE</div>
+          <div className="elge-sub">Low-End Game Engine</div>
+          <div
+            id="elge-status"
+            className="elge-status"
+          >
+            Initializing…
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
