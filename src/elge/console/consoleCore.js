@@ -1,4 +1,4 @@
-import { getCommand } from "./commandRegistry.ts";
+import { getCommand } from "./CommandRegistry.ts";
 import { advancementEvent } from "../advancements/events/advancementEvents.js";
 
 export function executeConsoleCommand(input) {

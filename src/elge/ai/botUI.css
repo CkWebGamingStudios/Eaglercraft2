@@ -1,0 +1,58 @@
+.elge-bot-editor {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 12, 0.78);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+  padding: 24px;
+}
+
+.elge-bot-editor-card {
+  background: rgba(8, 14, 26, 0.95);
+  border-radius: 18px;
+  padding: 28px;
+  max-width: 520px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 50px rgba(0, 0, 0, 0.45);
+  color: #eaf6ff;
+  display: grid;
+  gap: 16px;
+}
+
+.elge-bot-editor-card label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.elge-bot-editor-card input,
+.elge-bot-editor-card textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #eaf6ff;
+  font-size: 14px;
+}
+
+.elge-bot-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.elge-bot-editor-actions button {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  background: #00e5ff;
+  color: #031317;
+  font-weight: 600;
+}
+
+.elge-bot-editor-actions button:last-child {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eaf6ff;
+}
