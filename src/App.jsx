@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
-import Play from "./pages/Play.jsx";
 import {
   fetchAccessJwtHeader,
   getStoredAccessJwt,
@@ -13,7 +12,6 @@ import {
  */
 export default function App() {
   const [authFailed, setAuthFailed] = useState(false);
-  const isPlayRoute = window.location.pathname.startsWith("/play");
 
   useEffect(() => {
     // Load splash animation
@@ -59,7 +57,7 @@ export default function App() {
 
   return (
     <>
-      {isPlayRoute ? <Play /> : <Home authFailed={authFailed} />}
+      <Home authFailed={authFailed} />
       <div id="elge-splash">
         <canvas
           id="elge-canvas"
