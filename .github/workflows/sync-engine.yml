@@ -1,21 +1,18 @@
-name: Sync Engine to Elge Repo
-
+name: Mobile Sync to Elge
 on:
   push:
     paths:
-      - 'src/elge/**' # Only runs when files in your engine folder change
-
+      - 'src/elge/**' # Only triggers when you change the engine folder
 jobs:
-  sync:
+  push-to-elge:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Push to Elge Repo
+      - name: Push Subfolder to Elge Repo
         run: |
-          git remote add elge https://x-access-token:${{ secrets.SYNC_TOKEN }}@://github.com
+          git remote add elge https://x-access-token:${{ secrets.SYNC_TOKEN }}@://
+          github.com
           git subtree push --prefix=src/elge elge main
           
