@@ -16,3 +16,33 @@ Note: This will impact Vite dev & build performances.
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## ELGE sync to external repository
+
+This repo includes an automated sync for `src/elge` so you can host the engine separately (for example on Fly.io).
+
+### GitHub Actions automation
+
+The workflow is `.github/workflows/sync-engine.yml` and runs on:
+- pushes that change `src/elge/**`
+- manual trigger (`workflow_dispatch`)
+
+Configure these in your GitHub repository settings:
+- `SYNC_TOKEN` (secret): a personal access token with write access to the target `elge` repository
+- `ELGE_SYNC_REPO` (variable): target repo in `owner/repo` format (example: `CkGamingStudiosOfficial/elge`)
+- `ELGE_SYNC_BRANCH` (variable, optional): target branch (defaults to `main`)
+
+### Manual local sync script
+
+You can sync locally with:
+
+```bash
+scripts/sync-elge.sh <owner/repo> <branch> <token>
+```
+
+Or export `SYNC_TOKEN` and omit the token argument:
+
+```bash
+export SYNC_TOKEN=ghp_xxx
+scripts/sync-elge.sh CkGamingStudiosOfficial/elge main
+```
