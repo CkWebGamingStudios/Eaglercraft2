@@ -21,30 +21,28 @@ If you are developing a production application, we recommend using TypeScript wi
 
 This repo includes an automated sync for `src/elge` so you can host the engine separately (for example on Fly.io).
 
-Target repo is fixed to:
-- `https://github.com/CkWebGamingStudios/Elge.git`
-- branch `main`
-
 ### GitHub Actions automation
 
 The workflow is `.github/workflows/sync-engine.yml` and runs on:
 - pushes that change `src/elge/**`
 - manual trigger (`workflow_dispatch`)
 
-Configure this in your GitHub repository settings:
-- `SYNC_TOKEN` (secret): a personal access token with write access to `CkWebGamingStudios/Elge`
+Configure these in your GitHub repository settings:
+- `SYNC_TOKEN` (secret): a personal access token with write access to the target `elge` repository
+- `ELGE_SYNC_REPO` (variable): target repo in `owner/repo` format (example: `CkGamingStudiosOfficial/elge`)
+- `ELGE_SYNC_BRANCH` (variable, optional): target branch (defaults to `main`)
 
 ### Manual local sync script
 
-You can sync locally with defaults (target repo + `main` branch):
+You can sync locally with:
+
+```bash
+scripts/sync-elge.sh <owner/repo> <branch> <token>
+```
+
+Or export `SYNC_TOKEN` and omit the token argument:
 
 ```bash
 export SYNC_TOKEN=ghp_xxx
-scripts/sync-elge.sh
-```
-
-You can still override repo/branch explicitly:
-
-```bash
-scripts/sync-elge.sh CkWebGamingStudios/Elge main <token>
+scripts/sync-elge.sh CkGamingStudiosOfficial/elge main
 ```
