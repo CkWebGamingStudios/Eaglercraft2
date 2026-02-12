@@ -1,4 +1,4 @@
-name: Sync ELGE to external repository
+name: Sync ELGE to CkWebGamingStudios/Elge
 
 on:
   push:
@@ -25,38 +25,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate configuration
+      - name: Resolve and validate sync token
         env:
-          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
-          ELGE_SYNC_REPO: ${{ vars.ELGE_SYNC_REPO }}
-          ELGE_SYNC_BRANCH: ${{ vars.ELGE_SYNC_BRANCH }}
+          SECRET_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          VAR_SYNC_TOKEN: ${{ vars.SYNC_TOKEN }}
         run: |
+          SYNC_TOKEN="${SECRET_SYNC_TOKEN:-${VAR_SYNC_TOKEN:-}}"
+
           if [ -z "$SYNC_TOKEN" ]; then
-            echo "Missing required secret: SYNC_TOKEN"
+            echo "Missing sync token. Configure SYNC_TOKEN as an Actions secret (preferred) or Actions variable."
             exit 1
           fi
 
-          if [ -z "$ELGE_SYNC_REPO" ]; then
-            echo "Missing required repository variable: ELGE_SYNC_REPO (owner/repo)"
-            exit 1
-          fi
+          echo "::add-mask::$SYNC_TOKEN"
+          echo "SYNC_TOKEN=$SYNC_TOKEN" >> "$GITHUB_ENV"
 
-          if [ -z "$ELGE_SYNC_BRANCH" ]; then
-            echo "ELGE_SYNC_BRANCH not set, defaulting to 'main'"
-            echo "ELGE_SYNC_BRANCH=main" >> "$GITHUB_ENV"
-          else
-            echo "ELGE_SYNC_BRANCH=$ELGE_SYNC_BRANCH" >> "$GITHUB_ENV"
-          fi
+          case "$SYNC_TOKEN" in
+            ghs_*|ghu_*)
+              echo "SYNC_TOKEN appears to be a GitHub Actions runtime token (ghs_/ghu_), which cannot push to external repos."
+              echo "Use a PAT from an account that has write access to ${TARGET_REPO}."
+              exit 1
+              ;;
+          esac
 
-      - name: Push src/elge subtree
+      - name: Verify token can access target repository
         env:
-          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
-          ELGE_SYNC_REPO: ${{ vars.ELGE_SYNC_REPO }}
+          SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
+        run: |
+          git ls-remote "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git" >/dev/null
+
+      - name: Push src/elge subtree to target repository
+        env:
+          SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add elge "https://x-access-token:${SYNC_TOKEN}@github.com/${ELGE_SYNC_REPO}.git"
+          git remote add elge "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git"
 
           git subtree split --prefix=src/elge --branch elge-sync-temp
-          git push --force elge "elge-sync-temp:${ELGE_SYNC_BRANCH}"
+          git push --force elge "elge-sync-temp:${TARGET_BRANCH}"
           git branch -D elge-sync-temp
