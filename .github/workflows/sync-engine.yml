@@ -16,6 +16,9 @@ concurrency:
 jobs:
   push-to-elge:
     runs-on: ubuntu-latest
+    env:
+      TARGET_REPO: CkWebGamingStudios/Elge
+      TARGET_BRANCH: main
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
