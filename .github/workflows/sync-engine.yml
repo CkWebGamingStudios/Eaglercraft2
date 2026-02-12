@@ -1,18 +1,48 @@
-name: Mobile Sync to Elge
+name: Sync ELGE to CkWebGamingStudios/Elge
+
 on:
   push:
     paths:
-      - 'src/elge/**' # Only triggers when you change the engine folder
+      - "src/elge/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-elge
+  cancel-in-progress: true
+
 jobs:
   push-to-elge:
     runs-on: ubuntu-latest
+    env:
+      TARGET_REPO: CkWebGamingStudios/Elge
+      TARGET_BRANCH: main
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Push Subfolder to Elge Repo
+
+      - name: Validate configuration
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
-          git remote add elge https://x-access-token:${{ secrets.SYNC_TOKEN }}@://
-          github.com
-          git subtree push --prefix=src/elge elge main
-          
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo "Missing required secret: SYNC_TOKEN"
+            echo "Add it in repo settings: Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
+      - name: Push src/elge subtree to target repository
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add elge "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git"
+
+          git subtree split --prefix=src/elge --branch elge-sync-temp
+          git push --force elge "elge-sync-temp:${TARGET_BRANCH}"
+          git branch -D elge-sync-temp
