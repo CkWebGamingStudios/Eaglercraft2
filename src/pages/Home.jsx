@@ -9,9 +9,15 @@ export default function Home({ authFailed = false }) {
             <h3>Authentication Failed</h3>
             <p>
               We could not detect a Cf-Access-Jwt-Assertion header for this
-              session. Please sign in and refresh to continue.
+              session. If Cloudflare Access is protecting this app, allow the
+              header in CORS and verify the Service Token policy.
             </p>
-            <button className="home-primary">Retry Auth</button>
+            <button
+              className="home-primary"
+              onClick={() => window.location.reload()}
+            >
+              Retry Auth
+            </button>
           </div>
         </div>
       )}

@@ -59,3 +59,19 @@ You can still override repo/branch explicitly:
 ```bash
 scripts/sync-elge.sh CkWebGamingStudios/Elge main <token>
 ```
+
+## Cloudflare Access header checks
+
+The app checks for `Cf-Access-Jwt-Assertion` before showing authenticated UI.
+
+- By default, auth header checks are required on non-local hosts and skipped on `localhost`/`127.0.0.1`.
+- You can explicitly control protected hosts with:
+
+```bash
+VITE_CF_ACCESS_REQUIRED_HOSTS=play.example.com,staging.example.com
+```
+
+If you still see auth failures in browser console, verify:
+- Cloudflare Access CORS allows exposing `Cf-Access-Jwt-Assertion`.
+- Service Token / Access policy is valid for the route.
+- You are signed in to Access for the current hostname.
