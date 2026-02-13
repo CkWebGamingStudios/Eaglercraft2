@@ -3,6 +3,7 @@ import Home from "./pages/Home.jsx";
 import {
   fetchAccessJwtHeader,
   getStoredAccessJwt,
+  shouldRequireAccessJwt,
   storeAccessJwt
 } from "./utils/authHeader.js";
 
@@ -26,6 +27,10 @@ export default function App() {
 
     async function checkAuthHeader() {
       try {
+        if (!shouldRequireAccessJwt()) {
+          return;
+        }
+
         const jwtHeader = await fetchAccessJwtHeader();
         if (!isMounted) return;
 
