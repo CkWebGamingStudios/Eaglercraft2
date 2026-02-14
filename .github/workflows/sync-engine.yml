@@ -52,7 +52,7 @@ jobs:
         env:
           SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
         run: |
-          git ls-remote "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}" >/dev/null
+          git ls-remote "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git" >/dev/null
 
       - name: Push src/elge subtree to target repository
         env:
