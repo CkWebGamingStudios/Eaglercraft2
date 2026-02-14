@@ -52,6 +52,8 @@ Use a token from an account that has write access to `CkWebGamingStudios/Elge`:
 - Recommended: classic PAT with `repo` scope.
 - Fine-grained PAT also works if it includes **Contents: Read and write** on that repository.
 - Do **not** use `GITHUB_TOKEN`/runtime tokens (`ghs_`/`ghu_`); they cannot push to an external repository.
+- If your org uses SSO, authorize the PAT for SSO access or pushes will still fail.
+- Confirm the PAT owner is a collaborator/member with write access on the target repo itself.
 
 ### Manual local sync script
 
