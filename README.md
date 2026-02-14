@@ -28,13 +28,21 @@ Target repo is fixed to:
 ### GitHub Actions automation
 
 The workflow is `.github/workflows/sync-engine.yml` and runs on:
-- pushes that change `src/elge/**`
+- pushes to `main` that change `src/elge/**`, `scripts/sync-elge.sh`, or the workflow file
 - manual trigger (`workflow_dispatch`)
 
 Configure this in your GitHub repository settings:
 - `SYNC_TOKEN` as an **Actions secret** (preferred): a personal access token with write access to `CkWebGamingStudios/Elge`
+- Optional alternate secret name: `ELGE_SYNC_TOKEN`
 - Optional fallback: `SYNC_TOKEN` as an **Actions variable** if secrets are unavailable in your workflow context
 
+
+
+Workflow hardening included:
+- Runs only on `main` pushes (avoids failing sync attempts on feature branches without prod secrets).
+- Validates and masks token before use, and rejects `ghs_` / `ghu_` runtime tokens.
+- Cleans up existing temp subtree branch before split to avoid branch-exists failures.
+- Uses `timeout-minutes: 10` to prevent stuck jobs.
 
 ### Troubleshooting "permission denied to github-actions[bot]"
 
@@ -59,3 +67,19 @@ You can still override repo/branch explicitly:
 ```bash
 scripts/sync-elge.sh CkWebGamingStudios/Elge main <token>
 ```
+
+## Cloudflare Access UID lookup
+
+The home screen now asks for a Cloudflare Access user UID first, then fetches the user's `last_seen_identity` from Cloudflare API.
+
+Request used by the app:
+
+```text
+GET https://api.cloudflare.com/client/v4/accounts/432016fb922777d8a5140c9b3b3d37f3/access/users/<uid>/last_seen_identity
+Authorization: Bearer rVzipJyDnWRD5kGOCgKE9LTn0eWE8Wa7_-B9WHdJ
+```
+
+How to find the UID in CkWebGaming Studios Cloudflare Access App Launcher:
+- Open the App Launcher.
+- Open your profile / identity details.
+- Copy the user UID and paste it into the app prompt.

@@ -2,20 +2,25 @@ name: Sync ELGE to CkWebGamingStudios/Elge
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "src/elge/**"
+      - "scripts/sync-elge.sh"
+      - ".github/workflows/sync-engine.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: sync-elge
+  group: sync-elge-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   push-to-elge:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       TARGET_REPO: CkWebGamingStudios/Elge
       TARGET_BRANCH: main
@@ -28,12 +33,14 @@ jobs:
       - name: Resolve and validate sync token
         env:
           SECRET_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          SECRET_ELGE_SYNC_TOKEN: ${{ secrets.ELGE_SYNC_TOKEN }}
           VAR_SYNC_TOKEN: ${{ vars.SYNC_TOKEN }}
         run: |
-          SYNC_TOKEN="${SECRET_SYNC_TOKEN:-${VAR_SYNC_TOKEN:-}}"
+          SYNC_TOKEN="${SECRET_SYNC_TOKEN:-${SECRET_ELGE_SYNC_TOKEN:-${VAR_SYNC_TOKEN:-}}}"
 
           if [ -z "$SYNC_TOKEN" ]; then
-            echo "Missing sync token. Configure SYNC_TOKEN as an Actions secret (preferred) or Actions variable."
+            echo "Missing sync token. Configure SYNC_TOKEN (or ELGE_SYNC_TOKEN) as an Actions secret."
+            echo "Actions variable SYNC_TOKEN is also supported as a fallback."
             exit 1
           fi
 
@@ -62,6 +69,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add elge "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git"
 
-          git subtree split --prefix=src/elge --branch elge-sync-temp
-          git push --force elge "elge-sync-temp:${TARGET_BRANCH}"
-          git branch -D elge-sync-temp
+          TEMP_BRANCH="elge-sync-temp"
+          git branch -D "$TEMP_BRANCH" 2>/dev/null || true
+          git subtree split --prefix=src/elge --branch "$TEMP_BRANCH"
+          git push --force elge "$TEMP_BRANCH:${TARGET_BRANCH}"
+          git branch -D "$TEMP_BRANCH"

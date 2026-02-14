@@ -1,23 +1,28 @@
-const HEADER_NAME = "Cf-Access-Jwt-Assertion";
-const STORAGE_KEY = "elge:cf-access-jwt-assertion";
-const KV_KEY = "elge:kv:cf-access-jwt-assertion";
-const COOKIE_NAME = "cf-access-jwt-assertion";
+const CF_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
+const CF_ACCESS_API_TOKEN = "rVzipJyDnWRD5kGOCgKE9LTn0eWE8Wa7_-B9WHdJ";
 
-export async function fetchAccessJwtHeader() {
-  const response = await fetch(window.location.href, {
-    method: "HEAD",
-    cache: "no-store"
-  });
+export async function fetchLastSeenIdentity(userUid) {
+  const trimmedUid = userUid.trim();
+  if (!trimmedUid) {
+    throw new Error("Please enter your Cloudflare Access UID.");
+  }
 
-  return response.headers.get(HEADER_NAME);
-}
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/access/users/${encodeURIComponent(trimmedUid)}/last_seen_identity`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${CF_ACCESS_API_TOKEN}`
+      }
+    }
+  );
 
-export function getStoredAccessJwt() {
-  return localStorage.getItem(STORAGE_KEY);
-}
+  const payload = await response.json();
 
-export function storeAccessJwt(jwt) {
-  localStorage.setItem(STORAGE_KEY, jwt);
-  localStorage.setItem(KV_KEY, jwt);
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(jwt)}; path=/; secure; samesite=strict`;
+  if (!response.ok || payload.success === false) {
+    const apiError = payload?.errors?.[0]?.message || `Request failed with status ${response.status}`;
+    throw new Error(apiError);
+  }
+
+  return payload.result;
 }
