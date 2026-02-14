@@ -60,18 +60,18 @@ You can still override repo/branch explicitly:
 scripts/sync-elge.sh CkWebGamingStudios/Elge main <token>
 ```
 
-## Cloudflare Access header checks
+## Cloudflare Access UID lookup
 
-The app checks for `Cf-Access-Jwt-Assertion` before showing authenticated UI.
+The home screen now asks for a Cloudflare Access user UID first, then fetches the user's `last_seen_identity` from Cloudflare API.
 
-- By default, auth header checks are required on non-local hosts and skipped on `localhost`/`127.0.0.1`.
-- You can explicitly control protected hosts with:
+Request used by the app:
 
-```bash
-VITE_CF_ACCESS_REQUIRED_HOSTS=play.example.com,staging.example.com
+```text
+GET https://api.cloudflare.com/client/v4/accounts/432016fb922777d8a5140c9b3b3d37f3/access/users/<uid>/last_seen_identity
+Authorization: Bearer rVzipJyDnWRD5kGOCgKE9LTn0eWE8Wa7_-B9WHdJ
 ```
 
-If you still see auth failures in browser console, verify:
-- Cloudflare Access CORS allows exposing `Cf-Access-Jwt-Assertion`.
-- Service Token / Access policy is valid for the route.
-- You are signed in to Access for the current hostname.
+How to find the UID in CkWebGaming Studios Cloudflare Access App Launcher:
+- Open the App Launcher.
+- Open your profile / identity details.
+- Copy the user UID and paste it into the app prompt.
