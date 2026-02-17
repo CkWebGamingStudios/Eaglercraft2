@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
-import {
-  fetchAccessJwtHeader,
-  getStoredAccessJwt,
-  storeAccessJwt
-} from "./utils/authHeader.js";
+import { fetchLastSeenIdentity } from "./utils/authHeader.js";
 
 /**
  * App is intentionally thin.
  * It mounts the splash screen and starts ELGE boot.
  */
 export default function App() {
-  const [authFailed, setAuthFailed] = useState(false);
+  const [userUid, setUserUid] = useState("");
+  const [identityResult, setIdentityResult] = useState(null);
+  const [identityError, setIdentityError] = useState("");
+  const [isLoadingIdentity, setIsLoadingIdentity] = useState(false);
 
   useEffect(() => {
     // Load splash animation
@@ -21,43 +20,31 @@ export default function App() {
     import("./elge/boot/boot.js");
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
+  async function handleLookupIdentity() {
+    setIsLoadingIdentity(true);
+    setIdentityError("");
+    setIdentityResult(null);
 
-    async function checkAuthHeader() {
-      try {
-        const jwtHeader = await fetchAccessJwtHeader();
-        if (!isMounted) return;
-
-        if (!jwtHeader) {
-          setAuthFailed(true);
-          return;
-        }
-
-        const storedJwt = getStoredAccessJwt();
-        if (storedJwt === jwtHeader) {
-          return;
-        }
-
-        storeAccessJwt(jwtHeader);
-      } catch (error) {
-        if (isMounted) {
-          setAuthFailed(true);
-        }
-        console.error("[ELGE AUTH]", error);
-      }
+    try {
+      const result = await fetchLastSeenIdentity(userUid);
+      setIdentityResult(result);
+    } catch (error) {
+      setIdentityError(error instanceof Error ? error.message : "Unable to fetch identity.");
+    } finally {
+      setIsLoadingIdentity(false);
     }
-
-    checkAuthHeader();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }
 
   return (
     <>
-      <Home authFailed={authFailed} />
+      <Home
+        userUid={userUid}
+        onUserUidChange={setUserUid}
+        onLookupIdentity={handleLookupIdentity}
+        identityResult={identityResult}
+        identityError={identityError}
+        isLoadingIdentity={isLoadingIdentity}
+      />
       <div id="elge-splash">
         <canvas
           id="elge-canvas"

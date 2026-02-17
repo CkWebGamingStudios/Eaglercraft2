@@ -24,7 +24,7 @@ export function startRuntime({ context, capabilities }) {
     mountHub();
 
     // Main engine loop
-    startTickLoop((dt) => {
+    startTickLoop(() => {
         // Engine update tick
         // Renderer, world, net sync will hook here
     });
