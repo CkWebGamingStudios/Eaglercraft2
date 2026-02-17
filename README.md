@@ -72,14 +72,34 @@ scripts/sync-elge.sh CkWebGamingStudios/Elge main <token>
 
 ## Cloudflare Access UID lookup
 
-The home screen now asks for a Cloudflare Access user UID first, then fetches the user's `last_seen_identity` from Cloudflare API.
+The home screen asks for a Cloudflare Access user UID, then requests `last_seen_identity` through a server-side proxy.
 
-Request used by the app:
+Why this change:
+- Direct browser calls to Cloudflare API usually fail with `Failed to fetch` due to CORS.
+- API bearer tokens must stay server-side and not be embedded in browser JavaScript.
 
-```text
-GET https://api.cloudflare.com/client/v4/accounts/432016fb922777d8a5140c9b3b3d37f3/access/users/<uid>/last_seen_identity
-Authorization: Bearer rVzipJyDnWRD5kGOCgKE9LTn0eWE8Wa7_-B9WHdJ
+### Dev setup (Vite proxy)
+
+Set a local environment variable before running dev:
+
+```bash
+export CF_API_TOKEN=<your_cloudflare_api_token>
+npm run dev
 ```
+
+The app calls `/api/cloudflare/accounts/<account_id>/access/users/<uid>/last_seen_identity`, and Vite proxies to:
+- `https://api.cloudflare.com/client/v4/...`
+- with `Authorization: Bearer $CF_API_TOKEN` injected server-side.
+
+### Production setup
+
+Set:
+
+```bash
+VITE_CF_IDENTITY_PROXY_URL=https://your-server.example.com/cloudflare/client/v4
+```
+
+Your proxy endpoint must forward requests to Cloudflare API and inject authorization server-side.
 
 How to find the UID in CkWebGaming Studios Cloudflare Access App Launcher:
 - Open the App Launcher.
