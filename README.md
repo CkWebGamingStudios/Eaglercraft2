@@ -105,6 +105,7 @@ VITE_CF_IDENTITY_PROXY_URL=https://your-server.example.com/cloudflare/client/v4
 
 Your proxy endpoint must forward requests to Cloudflare API and inject authorization server-side.
 
+- If you see raw HTML (like `<!doctype html>` / sitemap/head/body markup) in the lookup message, your host is returning the SPA HTML fallback instead of proxying `/api/cloudflare/*`.
 How to find the UID in CkWebGaming Studios Cloudflare Access App Launcher:
 - Open the App Launcher.
 - Open your profile / identity details.

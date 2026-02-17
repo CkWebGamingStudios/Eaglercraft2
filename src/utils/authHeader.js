@@ -12,7 +12,22 @@ function getIdentityApiBaseUrl() {
 }
 
 function extractErrorMessage(payload, status) {
-  return payload?.errors?.[0]?.message || payload?.message || `Request failed with status ${status}`;
+  const message = payload?.errors?.[0]?.message || payload?.message;
+
+  if (typeof message === "string" && message.trim()) {
+    return message.length > 220 ? `${message.slice(0, 220)}…` : message;
+  }
+
+  return `Request failed with status ${status}`;
+}
+
+function looksLikeHtmlDocument(body, contentType = "") {
+  const normalized = body.trim().toLowerCase();
+  return (
+    contentType.includes("text/html") ||
+    normalized.startsWith("<!doctype html") ||
+    normalized.startsWith("<html")
+  );
 }
 
 export async function fetchLastSeenIdentity(userUid) {
@@ -30,6 +45,14 @@ export async function fetchLastSeenIdentity(userUid) {
     });
 
     const rawBody = await response.text();
+    const contentType = response.headers.get("content-type") || "";
+
+    if (rawBody && looksLikeHtmlDocument(rawBody, contentType)) {
+      throw new Error(
+        "Cloudflare identity lookup hit an HTML page instead of API JSON. Configure /api/cloudflare proxy routing (or VITE_CF_IDENTITY_PROXY_URL) to forward this request server-side."
+      );
+    }
+
     let payload = null;
 
     if (rawBody) {
@@ -48,6 +71,10 @@ export async function fetchLastSeenIdentity(userUid) {
       }
 
       throw new Error(extractErrorMessage(payload, response.status));
+    }
+
+    if (!payload) {
+      throw new Error("Cloudflare identity lookup returned an empty response from proxy.");
     }
 
     return payload?.result ?? payload;
