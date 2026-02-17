@@ -1,4 +1,5 @@
 const CF_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
+const DEFAULT_PROXY_BASE = "/api/cloudflare";
 
 function getIdentityApiBaseUrl() {
   const configuredProxy = import.meta.env.VITE_CF_IDENTITY_PROXY_URL;
@@ -7,13 +8,11 @@ function getIdentityApiBaseUrl() {
     return configuredProxy.replace(/\/$/, "");
   }
 
-  if (import.meta.env.DEV) {
-    return "/api/cloudflare";
-  }
+  return DEFAULT_PROXY_BASE;
+}
 
-  throw new Error(
-    "Cloudflare identity lookup is not configured for production. Set VITE_CF_IDENTITY_PROXY_URL to a server-side proxy endpoint."
-  );
+function extractErrorMessage(payload, status) {
+  return payload?.errors?.[0]?.message || payload?.message || `Request failed with status ${status}`;
 }
 
 export async function fetchLastSeenIdentity(userUid) {
@@ -30,18 +29,32 @@ export async function fetchLastSeenIdentity(userUid) {
       method: "GET"
     });
 
-    const payload = await response.json();
+    const rawBody = await response.text();
+    let payload = null;
 
-    if (!response.ok || payload.success === false) {
-      const apiError = payload?.errors?.[0]?.message || `Request failed with status ${response.status}`;
-      throw new Error(apiError);
+    if (rawBody) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        payload = { message: rawBody };
+      }
     }
 
-    return payload.result;
+    if (!response.ok || payload?.success === false) {
+      if (response.status === 404 && apiBaseUrl === DEFAULT_PROXY_BASE) {
+        throw new Error(
+          "Cloudflare identity proxy endpoint was not found at /api/cloudflare. Configure your host/server to proxy this route or set VITE_CF_IDENTITY_PROXY_URL."
+        );
+      }
+
+      throw new Error(extractErrorMessage(payload, response.status));
+    }
+
+    return payload?.result ?? payload;
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(
-        "Failed to fetch Cloudflare identity. This is usually a CORS/proxy issue. Configure VITE_CF_IDENTITY_PROXY_URL or use the Vite dev proxy with CF_API_TOKEN set in your environment."
+        "Failed to fetch Cloudflare identity. This is usually a CORS/proxy issue. Ensure /api/cloudflare is proxied server-side or set VITE_CF_IDENTITY_PROXY_URL to your proxy endpoint."
       );
     }
 

@@ -93,7 +93,11 @@ The app calls `/api/cloudflare/accounts/<account_id>/access/users/<uid>/last_see
 
 ### Production setup
 
-Set:
+Default client request path is: `/api/cloudflare` (same-origin).
+
+You can configure either of these options:
+- Preferred: configure your production host/server to proxy `/api/cloudflare/*` to Cloudflare API and inject authorization server-side.
+- Optional: set a custom proxy base URL with:
 
 ```bash
 VITE_CF_IDENTITY_PROXY_URL=https://your-server.example.com/cloudflare/client/v4
