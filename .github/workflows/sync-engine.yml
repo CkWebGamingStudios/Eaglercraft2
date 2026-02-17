@@ -2,20 +2,25 @@ name: Sync ELGE to CkWebGamingStudios/Elg
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "src/elge/**"
+      - "scripts/sync-elge.sh"
+      - ".github/workflows/sync-engine.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: sync-elge
+  group: sync-elge-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   push-to-elge:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       TARGET_REPO: CkWebGamingStudios/Elge
       TARGET_BRANCH: main
@@ -28,12 +33,14 @@ jobs:
       - name: Resolve and validate sync token
         env:
           SECRET_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+          SECRET_ELGE_SYNC_TOKEN: ${{ secrets.ELGE_SYNC_TOKEN }}
           VAR_SYNC_TOKEN: ${{ vars.SYNC_TOKEN }}
         run: |
-          SYNC_TOKEN="${SECRET_SYNC_TOKEN:-${VAR_SYNC_TOKEN:-}}"
+          SYNC_TOKEN="${SECRET_SYNC_TOKEN:-${SECRET_ELGE_SYNC_TOKEN:-${VAR_SYNC_TOKEN:-}}}"
 
           if [ -z "$SYNC_TOKEN" ]; then
-            echo "Missing sync token. Configure SYNC_TOKEN as an Actions secret (preferred) or Actions variable."
+            echo "Missing sync token. Configure SYNC_TOKEN (or ELGE_SYNC_TOKEN) as an Actions secret."
+            echo "Actions variable SYNC_TOKEN is also supported as a fallback."
             exit 1
           fi
 
@@ -48,7 +55,33 @@ jobs:
               ;;
           esac
 
-      - name: Verify token can access target repository
+      - name: Verify repository visibility with token
+        env:
+          SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -fsSL \
+            -H "Authorization: Bearer ${SYNC_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${TARGET_REPO}" \
+            > repo.json
+
+          python - <<'PY'
+import json
+with open('repo.json', 'r', encoding='utf-8') as f:
+    repo = json.load(f)
+
+push_allowed = bool(repo.get('permissions', {}).get('push'))
+if not push_allowed:
+    raise SystemExit(
+        "Token can read repo metadata but does not have push access. "
+        "Grant write access (classic PAT `repo` scope or fine-grained Contents: Read and write), "
+        "and authorize SSO if required."
+    )
+print('Token push permission check passed.')
+PY
+
+      - name: Verify token can access target git remote
         env:
           SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
         run: |
@@ -60,10 +93,4 @@ jobs:
           TARGET_REPO: ${{ env.TARGET_REPO }}
           TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote add elge "https://x-access-token:${SYNC_TOKEN}@github.com/${TARGET_REPO}.git"
-
-          git subtree split --prefix=src/elge --branch elge-sync-temp
-          git push --force elge "elge-sync-temp:${TARGET_BRANCH}"
-          git branch -D elge-sync-temp
+          scripts/sync-elge.sh "${TARGET_REPO}" "${TARGET_BRANCH}" "${SYNC_TOKEN}"
