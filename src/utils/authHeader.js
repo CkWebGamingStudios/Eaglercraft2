@@ -1,23 +1,63 @@
-const HEADER_NAME = "Cf-Access-Jwt-Assertion";
-const STORAGE_KEY = "elge:cf-access-jwt-assertion";
-const KV_KEY = "elge:kv:cf-access-jwt-assertion";
-const COOKIE_NAME = "cf-access-jwt-assertion";
+const CF_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
+const DEFAULT_PROXY_BASE = "/api/cloudflare";
 
-export async function fetchAccessJwtHeader() {
-  const response = await fetch(window.location.href, {
-    method: "HEAD",
-    cache: "no-store"
-  });
+function getIdentityApiBaseUrl() {
+  const configuredProxy = import.meta.env.VITE_CF_IDENTITY_PROXY_URL;
 
-  return response.headers.get(HEADER_NAME);
+  if (configuredProxy) {
+    return configuredProxy.replace(/\/$/, "");
+  }
+
+  return DEFAULT_PROXY_BASE;
 }
 
-export function getStoredAccessJwt() {
-  return localStorage.getItem(STORAGE_KEY);
+function extractErrorMessage(payload, status) {
+  return payload?.errors?.[0]?.message || payload?.message || `Request failed with status ${status}`;
 }
 
-export function storeAccessJwt(jwt) {
-  localStorage.setItem(STORAGE_KEY, jwt);
-  localStorage.setItem(KV_KEY, jwt);
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(jwt)}; path=/; secure; samesite=strict`;
+export async function fetchLastSeenIdentity(userUid) {
+  const trimmedUid = userUid.trim();
+  if (!trimmedUid) {
+    throw new Error("Please enter your Cloudflare Access UID.");
+  }
+
+  const apiBaseUrl = getIdentityApiBaseUrl();
+  const requestUrl = `${apiBaseUrl}/accounts/${CF_ACCOUNT_ID}/access/users/${encodeURIComponent(trimmedUid)}/last_seen_identity`;
+
+  try {
+    const response = await fetch(requestUrl, {
+      method: "GET"
+    });
+
+    const rawBody = await response.text();
+    let payload = null;
+
+    if (rawBody) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        payload = { message: rawBody };
+      }
+    }
+
+    if (!response.ok || payload?.success === false) {
+      if (response.status === 404 && apiBaseUrl === DEFAULT_PROXY_BASE) {
+        throw new Error(
+          "Cloudflare identity proxy endpoint was not found at /api/cloudflare. Configure your host/server to proxy this route or set VITE_CF_IDENTITY_PROXY_URL."
+        );
+      }
+
+      throw new Error(extractErrorMessage(payload, response.status));
+    }
+
+    return payload?.result ?? payload;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        "Failed to fetch Cloudflare identity. This is usually a CORS/proxy issue. Ensure /api/cloudflare is proxied server-side or set VITE_CF_IDENTITY_PROXY_URL to your proxy endpoint."
+      );
+    }
+
+    throw error;
+  }
 }
