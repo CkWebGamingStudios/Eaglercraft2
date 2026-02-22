@@ -125,3 +125,36 @@ How to find the UID in CkWebGaming Studios Cloudflare Access App Launcher:
 - Open the App Launcher.
 - Open your profile / identity details.
 - Copy the user UID and paste it into the app prompt.
+
+## Express.js fallback route for Cloudflare Access UID
+
+If you want a standalone Node backend (outside Pages Functions), use:
+- `server-access-proxy.mjs`
+- endpoint: `GET /api/get-user-uid`
+
+It reads the `cf-access-jwt-assertion` header injected by Cloudflare Access and fetches identity from:
+- `https://ckgamingstudios.cloudflareaccess.com/cdn-cgi/access/get-identity`
+
+### Run locally
+
+```bash
+npm install
+npm run server:access
+```
+
+Optional env vars:
+- `PORT` (default `3000`)
+- `CF_ACCESS_TEAM_DOMAIN` (default `https://ckgamingstudios.cloudflareaccess.com`)
+
+### Frontend call example
+
+```js
+async function loginWithCloudflare() {
+  const response = await fetch('/api/get-user-uid', { credentials: 'include' });
+  const data = await response.json();
+
+  if (data.uid) {
+    console.log('Logged in! Your UID is:', data.uid);
+  }
+}
+```

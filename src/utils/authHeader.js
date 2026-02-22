@@ -70,8 +70,13 @@ export async function fetchAccessUserUid() {
   const apiBaseUrl = getIdentityApiBaseUrl();
 
   try {
-    const payload = await fetchJsonWithGuards(`${apiBaseUrl}/identity`);
-    return payload?.result;
+    try {
+      const payload = await fetchJsonWithGuards(`${apiBaseUrl}/identity`);
+      return payload?.result ?? payload;
+    } catch {
+      const legacyPayload = await fetchJsonWithGuards("/api/get-user-uid");
+      return legacyPayload;
+    }
   } catch (error) {
     if (error instanceof TypeError) {
       throw new Error(
