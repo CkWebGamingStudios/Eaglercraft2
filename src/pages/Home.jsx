@@ -1,20 +1,58 @@
 import "./home.css";
 
-export default function Home({ authFailed = false }) {
+export default function Home({
+  userUid,
+  onUserUidChange,
+  onLookupIdentity,
+  onDetectUid,
+  identityResult,
+  identityError,
+  isLoadingIdentity,
+  isDetectingUid
+}) {
   return (
     <div className="home">
-      {authFailed && (
-        <div className="home-auth">
-          <div className="home-auth-card">
-            <h3>Authentication Failed</h3>
-            <p>
-              We could not detect a Cf-Access-Jwt-Assertion header for this
-              session. Please sign in and refresh to continue.
-            </p>
-            <button className="home-primary">Retry Auth</button>
-          </div>
+      <div className="home-auth">
+        <div className="home-auth-card">
+          <h3>Cloudflare Access Identity Check</h3>
+          <p>
+            Auto-detect your UID from the current Cloudflare Access session, or
+            paste it manually if needed.
+          </p>
+          <button
+            className="home-secondary"
+            onClick={onDetectUid}
+            disabled={isDetectingUid}
+          >
+            {isDetectingUid ? "Detecting UID..." : "Detect UID From Access Session"}
+          </button>
+          <ol>
+            <li>Open the CkWebGaming Studios Cloudflare Access App Launcher.</li>
+            <li>Select your profile or identity details panel.</li>
+            <li>Copy your user UID and paste it below (or use auto-detect).</li>
+          </ol>
+          <input
+            className="home-input"
+            type="text"
+            value={userUid}
+            onChange={(event) => onUserUidChange(event.target.value)}
+            placeholder="Enter Cloudflare Access UID"
+          />
+          <button
+            className="home-primary"
+            onClick={onLookupIdentity}
+            disabled={isLoadingIdentity}
+          >
+            {isLoadingIdentity ? "Checking..." : "Check Last Seen Identity"}
+          </button>
+
+          {identityError && <p>{identityError}</p>}
+
+          {identityResult && (
+            <pre>{JSON.stringify(identityResult, null, 2)}</pre>
+          )}
         </div>
-      )}
+      </div>
       <header className="home-hero">
         <nav className="home-nav">
           <div className="home-logo">ELGE</div>

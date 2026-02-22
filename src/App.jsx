@@ -1,63 +1,68 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
-import {
-  fetchAccessJwtHeader,
-  getStoredAccessJwt,
-  storeAccessJwt
-} from "./utils/authHeader.js";
+import { fetchAccessUserUid, fetchLastSeenIdentity } from "./utils/authHeader.js";
 
 /**
  * App is intentionally thin.
  * It mounts the splash screen and starts ELGE boot.
  */
 export default function App() {
-  const [authFailed, setAuthFailed] = useState(false);
+  const [userUid, setUserUid] = useState("");
+  const [identityResult, setIdentityResult] = useState(null);
+  const [identityError, setIdentityError] = useState("");
+  const [isLoadingIdentity, setIsLoadingIdentity] = useState(false);
+  const [isDetectingUid, setIsDetectingUid] = useState(false);
 
   useEffect(() => {
-    // Load splash animation
     import("./elge/splash.js");
-
-    // Start ELGE boot sequence
     import("./elge/boot/boot.js");
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
+  async function handleDetectUid() {
+    setIsDetectingUid(true);
+    setIdentityError("");
 
-    async function checkAuthHeader() {
-      try {
-        const jwtHeader = await fetchAccessJwtHeader();
-        if (!isMounted) return;
-
-        if (!jwtHeader) {
-          setAuthFailed(true);
-          return;
-        }
-
-        const storedJwt = getStoredAccessJwt();
-        if (storedJwt === jwtHeader) {
-          return;
-        }
-
-        storeAccessJwt(jwtHeader);
-      } catch (error) {
-        if (isMounted) {
-          setAuthFailed(true);
-        }
-        console.error("[ELGE AUTH]", error);
+    try {
+      const result = await fetchAccessUserUid();
+      if (result?.uid) {
+        setUserUid(result.uid);
+      } else {
+        setIdentityError("Cloudflare session found, but user UID was not present in identity payload.");
       }
+    } catch (error) {
+      setIdentityError(error instanceof Error ? error.message : "Unable to detect UID from Access session.");
+    } finally {
+      setIsDetectingUid(false);
     }
+  }
 
-    checkAuthHeader();
+  async function handleLookupIdentity() {
+    setIsLoadingIdentity(true);
+    setIdentityError("");
+    setIdentityResult(null);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    try {
+      const result = await fetchLastSeenIdentity(userUid);
+      setIdentityResult(result);
+    } catch (error) {
+      setIdentityError(error instanceof Error ? error.message : "Unable to fetch identity.");
+    } finally {
+      setIsLoadingIdentity(false);
+    }
+  }
 
   return (
     <>
-      <Home authFailed={authFailed} />
+      <Home
+        userUid={userUid}
+        onUserUidChange={setUserUid}
+        onLookupIdentity={handleLookupIdentity}
+        onDetectUid={handleDetectUid}
+        identityResult={identityResult}
+        identityError={identityError}
+        isLoadingIdentity={isLoadingIdentity}
+        isDetectingUid={isDetectingUid}
+      />
       <div id="elge-splash">
         <canvas
           id="elge-canvas"
