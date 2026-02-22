@@ -93,6 +93,20 @@ The app calls `/api/cloudflare/accounts/<account_id>/access/users/<uid>/last_see
 
 ### Production setup
 
+
+### Cloudflare Pages production proxy (recommended for this repo)
+
+If `https://eaglercraft2ck.pages.dev/api/cloudflare` shows your normal site HTML, the Pages Function route is not active.
+
+This repo now includes a Pages Function proxy at:
+- `functions/api/cloudflare/[[path]].js`
+
+To enable it on Cloudflare Pages:
+- In Pages project settings, set environment secret `CF_API_TOKEN` (Production + Preview).
+- Redeploy the site so Functions are published.
+- Test endpoint (expect JSON, not HTML):
+  - `/api/cloudflare/accounts/<account_id>/access/users/<uid>/last_seen_identity`
+
 Default client request path is: `/api/cloudflare` (same-origin).
 
 You can configure either of these options:
