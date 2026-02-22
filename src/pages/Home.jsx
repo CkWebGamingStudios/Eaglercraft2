@@ -4,9 +4,11 @@ export default function Home({
   userUid,
   onUserUidChange,
   onLookupIdentity,
+  onDetectUid,
   identityResult,
   identityError,
-  isLoadingIdentity
+  isLoadingIdentity,
+  isDetectingUid
 }) {
   return (
     <div className="home">
@@ -14,13 +16,20 @@ export default function Home({
         <div className="home-auth-card">
           <h3>Cloudflare Access Identity Check</h3>
           <p>
-            Enter your CkGamingStudios Cloudflare Access user UID to fetch your
-            last seen identity.
+            Auto-detect your UID from the current Cloudflare Access session, or
+            paste it manually if needed.
           </p>
+          <button
+            className="home-secondary"
+            onClick={onDetectUid}
+            disabled={isDetectingUid}
+          >
+            {isDetectingUid ? "Detecting UID..." : "Detect UID From Access Session"}
+          </button>
           <ol>
             <li>Open the CkWebGaming Studios Cloudflare Access App Launcher.</li>
             <li>Select your profile or identity details panel.</li>
-            <li>Copy your user UID and paste it below.</li>
+            <li>Copy your user UID and paste it below (or use auto-detect).</li>
           </ol>
           <input
             className="home-input"

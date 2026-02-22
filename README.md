@@ -100,6 +100,7 @@ If `https://eaglercraft2ck.pages.dev/api/cloudflare` shows your normal site HTML
 
 This repo now includes a Pages Function proxy at:
 - `functions/api/cloudflare/[[path]].js`
+- Added `functions/api/cloudflare/identity.js` to auto-resolve UID from current Cloudflare Access session (`cf-access-jwt-assertion` / `CF_Authorization`) and return `user_uuid` for the UI "Detect UID" flow.
 
 To enable it on Cloudflare Pages:
 - In Pages project settings, set environment secret `CF_API_TOKEN` (Production + Preview).

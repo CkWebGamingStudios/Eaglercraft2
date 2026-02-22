@@ -30,6 +30,59 @@ function looksLikeHtmlDocument(body, contentType = "") {
   );
 }
 
+async function fetchJsonWithGuards(requestUrl) {
+  const response = await fetch(requestUrl, {
+    method: "GET",
+    credentials: "include"
+  });
+
+  const rawBody = await response.text();
+  const contentType = response.headers.get("content-type") || "";
+
+  if (rawBody && looksLikeHtmlDocument(rawBody, contentType)) {
+    throw new Error(
+      "Cloudflare identity lookup hit an HTML page instead of API JSON. Configure /api/cloudflare proxy routing (or VITE_CF_IDENTITY_PROXY_URL) to forward this request server-side."
+    );
+  }
+
+  let payload = null;
+
+  if (rawBody) {
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      payload = { message: rawBody };
+    }
+  }
+
+  if (!response.ok || payload?.success === false) {
+    throw new Error(extractErrorMessage(payload, response.status));
+  }
+
+  if (!payload) {
+    throw new Error("Cloudflare identity lookup returned an empty response from proxy.");
+  }
+
+  return payload;
+}
+
+export async function fetchAccessUserUid() {
+  const apiBaseUrl = getIdentityApiBaseUrl();
+
+  try {
+    const payload = await fetchJsonWithGuards(`${apiBaseUrl}/identity`);
+    return payload?.result;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        "Failed to auto-detect UID from Cloudflare Access session. Ensure /api/cloudflare/identity is proxied and Cloudflare Access is active for this hostname."
+      );
+    }
+
+    throw error;
+  }
+}
+
 export async function fetchLastSeenIdentity(userUid) {
   const trimmedUid = userUid.trim();
   if (!trimmedUid) {
@@ -40,43 +93,7 @@ export async function fetchLastSeenIdentity(userUid) {
   const requestUrl = `${apiBaseUrl}/accounts/${CF_ACCOUNT_ID}/access/users/${encodeURIComponent(trimmedUid)}/last_seen_identity`;
 
   try {
-    const response = await fetch(requestUrl, {
-      method: "GET"
-    });
-
-    const rawBody = await response.text();
-    const contentType = response.headers.get("content-type") || "";
-
-    if (rawBody && looksLikeHtmlDocument(rawBody, contentType)) {
-      throw new Error(
-        "Cloudflare identity lookup hit an HTML page instead of API JSON. Configure /api/cloudflare proxy routing (or VITE_CF_IDENTITY_PROXY_URL) to forward this request server-side."
-      );
-    }
-
-    let payload = null;
-
-    if (rawBody) {
-      try {
-        payload = JSON.parse(rawBody);
-      } catch {
-        payload = { message: rawBody };
-      }
-    }
-
-    if (!response.ok || payload?.success === false) {
-      if (response.status === 404 && apiBaseUrl === DEFAULT_PROXY_BASE) {
-        throw new Error(
-          "Cloudflare identity proxy endpoint was not found at /api/cloudflare. Configure your host/server to proxy this route or set VITE_CF_IDENTITY_PROXY_URL."
-        );
-      }
-
-      throw new Error(extractErrorMessage(payload, response.status));
-    }
-
-    if (!payload) {
-      throw new Error("Cloudflare identity lookup returned an empty response from proxy.");
-    }
-
+    const payload = await fetchJsonWithGuards(requestUrl);
     return payload?.result ?? payload;
   } catch (error) {
     if (error instanceof TypeError) {

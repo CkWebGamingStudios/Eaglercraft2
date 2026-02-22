@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
-import { fetchLastSeenIdentity } from "./utils/authHeader.js";
+import { fetchAccessUserUid, fetchLastSeenIdentity } from "./utils/authHeader.js";
 
 /**
  * App is intentionally thin.
@@ -11,14 +11,30 @@ export default function App() {
   const [identityResult, setIdentityResult] = useState(null);
   const [identityError, setIdentityError] = useState("");
   const [isLoadingIdentity, setIsLoadingIdentity] = useState(false);
+  const [isDetectingUid, setIsDetectingUid] = useState(false);
 
   useEffect(() => {
-    // Load splash animation
     import("./elge/splash.js");
-
-    // Start ELGE boot sequence
     import("./elge/boot/boot.js");
   }, []);
+
+  async function handleDetectUid() {
+    setIsDetectingUid(true);
+    setIdentityError("");
+
+    try {
+      const result = await fetchAccessUserUid();
+      if (result?.uid) {
+        setUserUid(result.uid);
+      } else {
+        setIdentityError("Cloudflare session found, but user UID was not present in identity payload.");
+      }
+    } catch (error) {
+      setIdentityError(error instanceof Error ? error.message : "Unable to detect UID from Access session.");
+    } finally {
+      setIsDetectingUid(false);
+    }
+  }
 
   async function handleLookupIdentity() {
     setIsLoadingIdentity(true);
@@ -41,9 +57,11 @@ export default function App() {
         userUid={userUid}
         onUserUidChange={setUserUid}
         onLookupIdentity={handleLookupIdentity}
+        onDetectUid={handleDetectUid}
         identityResult={identityResult}
         identityError={identityError}
         isLoadingIdentity={isLoadingIdentity}
+        isDetectingUid={isDetectingUid}
       />
       <div id="elge-splash">
         <canvas
