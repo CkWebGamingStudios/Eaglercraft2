@@ -13,6 +13,8 @@ import {
 
 export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
+  
+  // Initialize state once with proper closing brackets
   const [identityState, setIdentityState] = useState(() => {
     const cached = loadCachedIdentity();
 
@@ -21,41 +23,6 @@ export default function App() {
     }
 
     return "Detecting Cloudflare Access UID...";
-  });
-
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
-    return "Detecting Cloudflare Access UID...";
-  });
-
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
-    return "Detecting Cloudflare Access UID...";
-  });
-
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
-    return "Detecting Cloudflare Access UID…";
-  });
-
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
-    return "Detecting Cloudflare Access UID…";
-  });
-
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
-    return "Detecting Cloudflare Access UID…";
   });
 
   // Animation & Engine Boot
@@ -114,10 +81,7 @@ export default function App() {
 
   return (
     <>
-      <Home
-        identityState={identityState}
-        profile={profile}
-      />
+      
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
