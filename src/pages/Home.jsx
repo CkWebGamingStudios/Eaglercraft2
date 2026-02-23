@@ -1,55 +1,28 @@
 import "./home.css";
 
-export default function Home({
-  userUid,
-  onUserUidChange,
-  onLookupIdentity,
-  onDetectUid,
-  identityResult,
-  identityError,
-  isLoadingIdentity,
-  isDetectingUid
-}) {
+export default function Home({ identityState, profile }) {
   return (
     <div className="home">
       <div className="home-auth">
         <div className="home-auth-card">
-          <h3>Cloudflare Access Identity Check</h3>
-          <p>
-            Auto-detect your UID from the current Cloudflare Access session, or
-            paste it manually if needed.
-          </p>
-          <button
-            className="home-secondary"
-            onClick={onDetectUid}
-            disabled={isDetectingUid}
-          >
-            {isDetectingUid ? "Detecting UID..." : "Detect UID From Access Session"}
-          </button>
-          <ol>
-            <li>Open the CkWebGaming Studios Cloudflare Access App Launcher.</li>
-            <li>Select your profile or identity details panel.</li>
-            <li>Copy your user UID and paste it below (or use auto-detect).</li>
-          </ol>
-          <input
-            className="home-input"
-            type="text"
-            value={userUid}
-            onChange={(event) => onUserUidChange(event.target.value)}
-            placeholder="Enter Cloudflare Access UID"
-          />
-          <button
-            className="home-primary"
-            onClick={onLookupIdentity}
-            disabled={isLoadingIdentity}
-          >
-            {isLoadingIdentity ? "Checking..." : "Check Last Seen Identity"}
-          </button>
-
-          {identityError && <p>{identityError}</p>}
-
-          {identityResult && (
-            <pre>{JSON.stringify(identityResult, null, 2)}</pre>
+          <h3>Cloudflare Access Identity</h3>
+          <p>{identityState}</p>
+          {profile && (
+            <div className="home-profile">
+              {profile.profilePicture && (
+                <img
+                  className="home-avatar"
+                  src={profile.profilePicture}
+                  alt={profile.username || profile.uid}
+                />
+              )}
+              <div>
+                <p><strong>UID:</strong> {profile.uid}</p>
+                <p><strong>Email:</strong> {profile.email || "Unknown"}</p>
+                <p><strong>Username:</strong> {profile.username || "Unknown"}</p>
+                <p><strong>Country:</strong> {profile.country || "Unknown"}</p>
+              </div>
+            </div>
           )}
         </div>
       </div>

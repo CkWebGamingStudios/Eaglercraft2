@@ -102,6 +102,20 @@ This repo now includes a Pages Function proxy at:
 - `functions/api/cloudflare/[[path]].js`
 - Added `functions/api/cloudflare/identity.js` to auto-resolve UID from current Cloudflare Access session (`cf-access-jwt-assertion` / `CF_Authorization`) and return `user_uuid` for the UI "Detect UID" flow.
 
+- Added `functions/api/cloudflare/users/[uid].js` to persist and load user profile records in Cloudflare KV keyed by UID.
+
+KV binding required:
+- `ELGE_USERS_KV` (preferred) or `USER_PROFILE_KV`
+
+Stored profile fields:
+- `title` (set to UID)
+- `uid`
+- `email`
+- `country`
+- `username`
+- `profilePicture`
+- `updatedAt`
+
 To enable it on Cloudflare Pages:
 - In Pages project settings, set environment secret `CF_API_TOKEN` (Production + Preview).
 - Redeploy the site so Functions are published.

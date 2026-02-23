@@ -1,33 +1,67 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
-import { fetchAccessUserUid, fetchLastSeenIdentity } from "./utils/authHeader.js";
+import {
+  buildUserProfile,
+  fetchAccessUserUid,
+  fetchUserProfile,
+  loadCachedIdentity,
+  loadCachedProfile,
+  saveCachedProfile,
+  saveIdentitySnapshot,
+  upsertUserProfile
+} from "./utils/authHeader.js";
 
 /**
  * App is intentionally thin.
  * It mounts the splash screen and starts ELGE boot.
  */
 export default function App() {
-  const [userUid, setUserUid] = useState("");
-  const [identityResult, setIdentityResult] = useState(null);
-  const [identityError, setIdentityError] = useState("");
-  const [isLoadingIdentity, setIsLoadingIdentity] = useState(false);
-  const [isDetectingUid, setIsDetectingUid] = useState(false);
+  const [profile, setProfile] = useState(() => loadCachedProfile());
+  const [identityState, setIdentityState] = useState(() => {
+    const cached = loadCachedIdentity();
+
+    if (cached?.uid) {
+      return `Cached UID detected: ${cached.uid}`;
+    }
+
+    return "Detecting Cloudflare Access UID…";
+  });
 
   useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
   }, []);
 
-  async function handleDetectUid() {
-    setIsDetectingUid(true);
-    setIdentityError("");
+  useEffect(() => {
+    let cancelled = false;
 
-    try {
-      const result = await fetchAccessUserUid();
-      if (result?.uid) {
-        setUserUid(result.uid);
-      } else {
-        setIdentityError("Cloudflare session found, but user UID was not present in identity payload.");
+    async function bootstrapIdentity() {
+      try {
+        const identityResult = await fetchAccessUserUid();
+        if (cancelled) return;
+
+        saveIdentitySnapshot(identityResult);
+
+        const uid = identityResult?.uid;
+        if (!uid) {
+          setIdentityState("Cloudflare Access session detected but UID was missing.");
+          return;
+        }
+
+        setIdentityState(`Detected UID: ${uid}`);
+
+        const builtProfile = buildUserProfile(identityResult);
+        const storedProfile = await upsertUserProfile(uid, builtProfile);
+
+        saveCachedProfile(storedProfile);
+        setProfile(storedProfile);
+
+        const kvProfile = await fetchUserProfile(uid);
+        saveCachedProfile(kvProfile);
+        setProfile(kvProfile);
+      } catch (error) {
+        if (cancelled) return;
+        setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");
       }
     } catch (error) {
       setIdentityError(error instanceof Error ? error.message : "Unable to detect UID from Access session.");
@@ -36,32 +70,18 @@ export default function App() {
     }
   }
 
-  async function handleLookupIdentity() {
-    setIsLoadingIdentity(true);
-    setIdentityError("");
-    setIdentityResult(null);
+    bootstrapIdentity();
 
-    try {
-      const result = await fetchLastSeenIdentity(userUid);
-      setIdentityResult(result);
-    } catch (error) {
-      setIdentityError(error instanceof Error ? error.message : "Unable to fetch identity.");
-    } finally {
-      setIsLoadingIdentity(false);
-    }
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
       <Home
-        userUid={userUid}
-        onUserUidChange={setUserUid}
-        onLookupIdentity={handleLookupIdentity}
-        onDetectUid={handleDetectUid}
-        identityResult={identityResult}
-        identityError={identityError}
-        isLoadingIdentity={isLoadingIdentity}
-        isDetectingUid={isDetectingUid}
+        identityState={identityState}
+        profile={profile}
       />
       <div id="elge-splash">
         <canvas
