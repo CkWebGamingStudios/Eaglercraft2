@@ -1,4 +1,5 @@
 export async function dispatch(intent, caps) {
+  void caps;
   switch (intent) {
     case "PLAY":
       return import("../modules/play.js");
