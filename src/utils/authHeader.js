@@ -2,6 +2,7 @@ const CF_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
 const DEFAULT_PROXY_BASE = "/api/cloudflare";
 const IDENTITY_STORAGE_KEY = "elge:cloudflare:identity";
 const PROFILE_STORAGE_KEY = "elge:cloudflare:profile";
+const API_UNAVAILABLE_KEY = "elge:cloudflare:api-unavailable";
 
 function getIdentityApiBaseUrl() {
   const configuredProxy = import.meta.env.VITE_CF_IDENTITY_PROXY_URL;
@@ -11,6 +12,12 @@ function getIdentityApiBaseUrl() {
   }
 
   return DEFAULT_PROXY_BASE;
+}
+
+function withStatusError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
 }
 
 function extractErrorMessage(payload, status) {
@@ -42,8 +49,9 @@ async function fetchJsonWithGuards(requestUrl, options = {}) {
   const contentType = response.headers.get("content-type") || "";
 
   if (rawBody && looksLikeHtmlDocument(rawBody, contentType)) {
-    throw new Error(
-      "Cloudflare identity lookup hit an HTML page instead of API JSON. Configure /api/cloudflare proxy routing (or VITE_CF_IDENTITY_PROXY_URL) to forward this request server-side."
+    throw withStatusError(
+      "Cloudflare identity lookup hit an HTML page instead of API JSON. Configure /api/cloudflare proxy routing (or VITE_CF_IDENTITY_PROXY_URL) to forward this request server-side.",
+      response.status
     );
   }
 
@@ -58,11 +66,11 @@ async function fetchJsonWithGuards(requestUrl, options = {}) {
   }
 
   if (!response.ok || payload?.success === false) {
-    throw new Error(extractErrorMessage(payload, response.status));
+    throw withStatusError(extractErrorMessage(payload, response.status), response.status);
   }
 
   if (!payload) {
-    throw new Error("Cloudflare identity lookup returned an empty response from proxy.");
+    throw withStatusError("Cloudflare identity lookup returned an empty response from proxy.", response.status);
   }
 
   return payload;
@@ -96,16 +104,8 @@ export function buildUserProfile(identityResult) {
     identity.preferred_username ||
     identity.nickname ||
     (email ? email.split("@")[0] : "");
-  const country =
-    identity.country ||
-    identity?.custom?.country ||
-    identity?.geo?.country ||
-    "";
-  const profilePicture =
-    identity.picture ||
-    identity.avatar ||
-    identity?.custom?.profile_picture ||
-    "";
+  const country = identity.country || identity?.custom?.country || identity?.geo?.country || "";
+  const profilePicture = identity.picture || identity.avatar || identity?.custom?.profile_picture || "";
 
   return {
     title: uid,
@@ -121,15 +121,32 @@ export function buildUserProfile(identityResult) {
 export async function fetchAccessUserUid() {
   const apiBaseUrl = getIdentityApiBaseUrl();
 
-  try {
-    try {
-      const payload = await fetchJsonWithGuards(`${apiBaseUrl}/identity`);
-      return payload?.result ?? payload;
-    } catch {
-      const legacyPayload = await fetchJsonWithGuards("/api/get-user-uid");
-      return legacyPayload;
+  if (localStorage.getItem(API_UNAVAILABLE_KEY) === "1") {
+    const cached = loadCachedIdentity();
+    if (cached?.uid) {
+      return cached;
     }
+    throw new Error("Cloudflare identity endpoint is unavailable on this deployment. Configure /api/cloudflare routes.");
+  }
+
+  try {
+    const payload = await fetchJsonWithGuards(`${apiBaseUrl}/identity`);
+    localStorage.removeItem(API_UNAVAILABLE_KEY);
+    return payload?.result ?? payload;
   } catch (error) {
+    if (error?.status === 404) {
+      localStorage.setItem(API_UNAVAILABLE_KEY, "1");
+      throw new Error("Cloudflare identity endpoint not found (404). Deploy Pages Functions for /api/cloudflare/identity.");
+    }
+
+    try {
+      const legacyPayload = await fetchJsonWithGuards("/api/get-user-uid");
+      localStorage.removeItem(API_UNAVAILABLE_KEY);
+      return legacyPayload;
+    } catch {
+      // preserve primary error message
+    }
+
     if (error instanceof TypeError) {
       throw new Error(
         "Failed to auto-detect UID from Cloudflare Access session. Ensure /api/cloudflare/identity is proxied and Cloudflare Access is active for this hostname."
