@@ -20,6 +20,13 @@ export default function App() {
       return `Cached UID detected: ${cached.uid}`;
     }
 
+    return "Detecting Cloudflare Access UID...";
+  });
+
+    if (cached?.uid) {
+      return `Cached UID detected: ${cached.uid}`;
+    }
+
     return "Detecting Cloudflare Access UID…";
   });
 
