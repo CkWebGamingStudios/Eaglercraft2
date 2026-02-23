@@ -13,9 +13,7 @@ export default defineConfig(({ mode }) => {
         }
       }),
       Sitemap({
-        generateRobotsTxt: false,
         hostname: "https://eaglercraft2ck.pages.dev"
-        
       })
     ],
     server: {

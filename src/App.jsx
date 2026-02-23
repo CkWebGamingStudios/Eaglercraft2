@@ -15,7 +15,12 @@ export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
   const [identityState, setIdentityState] = useState(() => {
     const cached = loadCachedIdentity();
-    return cached?.uid ? `Cached UID detected: ${cached.uid}` : "Detecting Cloudflare Access UID…";
+
+    if (cached?.uid) {
+      return `Cached UID detected: ${cached.uid}`;
+    }
+
+    return "Detecting Cloudflare Access UID…";
   });
 
   // Animation & Engine Boot
@@ -46,16 +51,12 @@ export default function App() {
         const builtProfile = buildUserProfile(identityResult);
         const storedProfile = await upsertUserProfile(uid, builtProfile);
 
-        if (!cancelled) {
-          saveCachedProfile(storedProfile);
-          setProfile(storedProfile);
-        }
+        saveCachedProfile(storedProfile);
+        setProfile(storedProfile);
 
         const kvProfile = await fetchUserProfile(uid);
-        if (!cancelled) {
-          saveCachedProfile(kvProfile);
-          setProfile(kvProfile);
-        }
+        saveCachedProfile(kvProfile);
+        setProfile(kvProfile);
       } catch (error) {
         if (cancelled) return;
         setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");
@@ -71,7 +72,10 @@ export default function App() {
 
   return (
     <>
-      
+      <Home
+        identityState={identityState}
+        profile={profile}
+      />
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
