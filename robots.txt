@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://eaglercraft2ck.pages.dev/sitemap.xml

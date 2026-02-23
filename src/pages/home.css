@@ -58,6 +58,38 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+
+.home-auth-card ol {
+  margin: 12px 0;
+  padding-left: 20px;
+  opacity: 0.85;
+}
+
+.home-input {
+  width: 100%;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eaf6ff;
+}
+
+.home-profile {
+  margin-top: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.home-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .home a {
   color: inherit;
   text-decoration: none;
