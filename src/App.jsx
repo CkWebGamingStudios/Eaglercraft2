@@ -30,6 +30,19 @@ export default function App() {
   useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
+
+    const fallbackTimer = setTimeout(() => {
+      const splash = document.getElementById("elge-splash");
+      if (splash) {
+        splash.style.opacity = "0";
+        splash.style.transition = "opacity 300ms ease";
+        setTimeout(() => splash.remove(), 300);
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   useEffect(() => {
