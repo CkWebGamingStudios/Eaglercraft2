@@ -13,8 +13,6 @@ import {
 
 export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
-  
-  // Initialize state once with proper closing brackets
   const [identityState, setIdentityState] = useState(() => {
     const cached = loadCachedIdentity();
 
