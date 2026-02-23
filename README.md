@@ -106,6 +106,7 @@ This repo now includes a Pages Function proxy at:
 
 KV binding required:
 - `ELGE_USERS_KV` (preferred) or `USER_PROFILE_KV`
+- If KV binding still appears missing, call `/api/cloudflare/users/test` and check `diagnostics.has_ELGE_USERS_KV` / `diagnostics.has_USER_PROFILE_KV` in the JSON response.
 
 Stored profile fields:
 - `title` (set to UID)

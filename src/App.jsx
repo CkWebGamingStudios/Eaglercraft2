@@ -27,6 +27,13 @@ export default function App() {
       return `Cached UID detected: ${cached.uid}`;
     }
 
+    return "Detecting Cloudflare Access UID...";
+  });
+
+    if (cached?.uid) {
+      return `Cached UID detected: ${cached.uid}`;
+    }
+
     return "Detecting Cloudflare Access UID…";
   });
 
@@ -70,14 +77,21 @@ export default function App() {
         setIdentityState(`Detected UID: ${uid}`);
 
         const builtProfile = buildUserProfile(identityResult);
-        const storedProfile = await upsertUserProfile(uid, builtProfile);
+        saveCachedProfile(builtProfile);
+        setProfile(builtProfile);
 
-        saveCachedProfile(storedProfile);
-        setProfile(storedProfile);
+        try {
+          const storedProfile = await upsertUserProfile(uid, builtProfile);
+          saveCachedProfile(storedProfile);
+          setProfile(storedProfile);
 
-        const kvProfile = await fetchUserProfile(uid);
-        saveCachedProfile(kvProfile);
-        setProfile(kvProfile);
+          const kvProfile = await fetchUserProfile(uid);
+          saveCachedProfile(kvProfile);
+          setProfile(kvProfile);
+        } catch (kvError) {
+          const message = kvError instanceof Error ? kvError.message : "KV sync failed";
+          setIdentityState(`Detected UID: ${uid} (KV sync unavailable: ${message})`);
+        }
       } catch (error) {
         if (cancelled) return;
         setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");

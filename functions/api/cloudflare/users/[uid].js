@@ -35,7 +35,11 @@ export async function onRequest(context) {
   if (!kv) {
     return jsonResponse(origin, 500, {
       success: false,
-      errors: [{ message: "Missing KV binding. Configure ELGE_USERS_KV (or USER_PROFILE_KV) in Pages Functions." }]
+      errors: [{ message: "Missing KV binding. Configure ELGE_USERS_KV (or USER_PROFILE_KV) in Pages Functions." }],
+      diagnostics: {
+        has_ELGE_USERS_KV: Boolean(env.ELGE_USERS_KV),
+        has_USER_PROFILE_KV: Boolean(env.USER_PROFILE_KV)
+      }
     });
   }
 
