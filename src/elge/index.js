@@ -10,7 +10,7 @@ export function start() {
   initConsole();
   registerDefaultCommands();
 
-  startTickLoop(dt => {
+  startTickLoop(() => {
     // engine update
   });
 }
