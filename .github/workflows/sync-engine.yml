@@ -1,4 +1,4 @@
-name: Sync ELGE to CkWebGamingStudios/Elge
+name: Sync ELGE to CkWebGamingStudios/Elg
 
 on:
   push:
@@ -90,5 +90,7 @@ PY
       - name: Push src/elge subtree to target repository
         env:
           SYNC_TOKEN: ${{ env.SYNC_TOKEN }}
+          TARGET_REPO: ${{ env.TARGET_REPO }}
+          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
         run: |
           scripts/sync-elge.sh "${TARGET_REPO}" "${TARGET_BRANCH}" "${SYNC_TOKEN}"
