@@ -63,7 +63,12 @@ export default function App() {
         if (cancelled) return;
         setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");
       }
+    } catch (error) {
+      setIdentityError(error instanceof Error ? error.message : "Unable to detect UID from Access session.");
+    } finally {
+      setIsDetectingUid(false);
     }
+  }
 
     bootstrapIdentity();
 
