@@ -4,7 +4,9 @@ export function scanCapabilities() {
 
   try {
     gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  } catch { }
+  } catch {
+    gl = null;
+  }
 
   return {
     webgl: !!gl,
