@@ -21,6 +21,10 @@ export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
   const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
 
+    return "Detecting Cloudflare Access UID...";
+  })
+
+  // Animation & Engine Boot
   useEffect(() => {
     const cachedIdentity = loadCachedIdentity();
     if (cachedIdentity?.uid) {
@@ -46,6 +50,7 @@ export default function App() {
     };
   }, []);
 
+  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -100,12 +105,7 @@ export default function App() {
         profile={profile}
       />
       <div id="elge-splash">
-        <canvas
-          id="elge-canvas"
-          width="512"
-          height="512"
-        />
-
+        <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
           <div className="elge-sub">Low-End Game Engine</div>
