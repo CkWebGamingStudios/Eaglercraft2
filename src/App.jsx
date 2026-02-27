@@ -11,10 +11,15 @@ import {
   upsertUserProfile
 } from "./utils/authHeader.js";
 
+const IDENTITY_PENDING_TEXT = "Detecting Cloudflare Access UID...";
+
+/**
+ * App is intentionally thin.
+ * It mounts the splash screen and starts ELGE boot.
+ */
 export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
-  const [identityState, setIdentityState] = useState(() => {
-    const cached = loadCachedIdentity();
+  const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
 
     if (cached?.uid) {
       return `Cached UID detected: ${cached.uid}`;
@@ -25,8 +30,28 @@ export default function App() {
 
   // Animation & Engine Boot
   useEffect(() => {
+    const cachedIdentity = loadCachedIdentity();
+    if (cachedIdentity?.uid) {
+      setIdentityState(`Cached UID detected: ${cachedIdentity.uid}`);
+    }
+  }, []);
+
+  useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
+
+    const fallbackTimer = setTimeout(() => {
+      const splash = document.getElementById("elge-splash");
+      if (splash) {
+        splash.style.opacity = "0";
+        splash.style.transition = "opacity 300ms ease";
+        setTimeout(() => splash.remove(), 300);
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
   // Identity Bootstrapping
@@ -79,7 +104,10 @@ export default function App() {
 
   return (
     <>
-      
+      <Home
+        identityState={identityState}
+        profile={profile}
+      />
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
