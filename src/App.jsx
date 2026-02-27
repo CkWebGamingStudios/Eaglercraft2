@@ -21,12 +21,8 @@ export default function App() {
   const [profile, setProfile] = useState(() => loadCachedProfile());
   const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
 
-    if (cached?.uid) {
-      return `Cached UID detected: ${cached.uid}`;
-    }
-
     return "Detecting Cloudflare Access UID...";
-  });
+  })
 
   // Animation & Engine Boot
   useEffect(() => {
@@ -113,8 +109,11 @@ export default function App() {
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
           <div className="elge-sub">Low-End Game Engine</div>
-          <div id="elge-status" className="elge-status">
-            Initializing…
+          <div
+            id="elge-status"
+            className="elge-status"
+          >
+            Initializing...
           </div>
         </div>
       </div>
