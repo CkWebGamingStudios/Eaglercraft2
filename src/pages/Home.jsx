@@ -1,20 +1,31 @@
 import "./home.css";
 
-export default function Home({ authFailed = false }) {
+export default function Home({ identityState, profile }) {
   return (
     <div className="home">
-      {authFailed && (
-        <div className="home-auth">
-          <div className="home-auth-card">
-            <h3>Authentication Failed</h3>
-            <p>
-              We could not detect a Cf-Access-Jwt-Assertion header for this
-              session. Please sign in and refresh to continue.
-            </p>
-            <button className="home-primary">Retry Auth</button>
-          </div>
+      <div className="home-auth">
+        <div className="home-auth-card">
+          <h3>Cloudflare Access Identity</h3>
+          <p>{identityState}</p>
+          {profile && (
+            <div className="home-profile">
+              {profile.profilePicture && (
+                <img
+                  className="home-avatar"
+                  src={profile.profilePicture}
+                  alt={profile.username || profile.uid}
+                />
+              )}
+              <div>
+                <p><strong>UID:</strong> {profile.uid}</p>
+                <p><strong>Email:</strong> {profile.email || "Unknown"}</p>
+                <p><strong>Username:</strong> {profile.username || "Unknown"}</p>
+                <p><strong>Country:</strong> {profile.country || "Unknown"}</p>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       <header className="home-hero">
         <nav className="home-nav">
           <div className="home-logo">ELGE</div>
