@@ -18,16 +18,14 @@ const IDENTITY_PENDING_TEXT = "Detecting Cloudflare Access UID...";
  * It mounts the splash screen and starts ELGE boot.
  */
 export default function App() {
-  const [profile, setProfile] = useState(() => loadCachedProfile());
+  const initialProfile = loadCachedProfile();
+  const [profile, setProfile] = useState(initialProfile);
   const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
-
-    return "Detecting Cloudflare Access UID...";
-  })
 
   // Animation & Engine Boot
   useEffect(() => {
     const cachedIdentity = loadCachedIdentity();
-    if (cachedIdentity?.uid) {
+    if (cachedIdentity && cachedIdentity.uid) {
       setIdentityState(`Cached UID detected: ${cachedIdentity.uid}`);
     }
   }, []);
