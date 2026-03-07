@@ -1,63 +1,105 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
 import {
-  fetchAccessJwtHeader,
-  getStoredAccessJwt,
-  storeAccessJwt
+  buildUserProfile,
+  fetchAccessUserUid,
+  fetchUserProfile,
+  loadCachedIdentity,
+  loadCachedProfile,
+  saveCachedProfile,
+  saveIdentitySnapshot,
+  upsertUserProfile
 } from "./utils/authHeader.js";
+
+const IDENTITY_PENDING_TEXT = "Detecting Cloudflare Access UID...";
 
 /**
  * App is intentionally thin.
  * It mounts the splash screen and starts ELGE boot.
  */
 export default function App() {
-  const [authFailed, setAuthFailed] = useState(false);
+  const initialProfile = loadCachedProfile();
+  const [profile, setProfile] = useState(initialProfile);
+  const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
 
   useEffect(() => {
-    // Load splash animation
-    import("./elge/splash.js");
-
-    // Start ELGE boot sequence
-    import("./elge/boot/boot.js");
+    const cachedIdentity = loadCachedIdentity();
+    if (cachedIdentity && cachedIdentity.uid) {
+      setIdentityState(`Cached UID detected: ${cachedIdentity.uid}`);
+    }
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    import("./elge/splash.js");
+    import("./elge/boot/boot.js");
 
-    async function checkAuthHeader() {
+    const fallbackTimer = setTimeout(() => {
+      const splash = document.getElementById("elge-splash");
+      if (splash) {
+        splash.style.opacity = "0";
+        splash.style.transition = "opacity 300ms ease";
+        setTimeout(() => splash.remove(), 300);
+      }
+    }, 8000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapIdentity() {
       try {
-        const jwtHeader = await fetchAccessJwtHeader();
-        if (!isMounted) return;
+        const identityResult = await fetchAccessUserUid();
+        if (cancelled) return;
 
-        if (!jwtHeader) {
-          setAuthFailed(true);
+        saveIdentitySnapshot(identityResult);
+
+        const uid = identityResult?.uid;
+        if (!uid) {
+          setIdentityState("Cloudflare Access session detected but UID was missing.");
           return;
         }
 
-        const storedJwt = getStoredAccessJwt();
-        if (storedJwt === jwtHeader) {
-          return;
-        }
+        setIdentityState(`Detected UID: ${uid}`);
 
-        storeAccessJwt(jwtHeader);
+        const builtProfile = buildUserProfile(identityResult);
+        saveCachedProfile(builtProfile);
+        setProfile(builtProfile);
+
+        try {
+          const storedProfile = await upsertUserProfile(uid, builtProfile);
+          saveCachedProfile(storedProfile);
+          setProfile(storedProfile);
+
+          const kvProfile = await fetchUserProfile(uid);
+          saveCachedProfile(kvProfile);
+          setProfile(kvProfile);
+        } catch (kvError) {
+          const message = kvError instanceof Error ? kvError.message : "KV sync failed";
+          setIdentityState(`Detected UID: ${uid} (KV sync unavailable: ${message})`);
+        }
       } catch (error) {
-        if (isMounted) {
-          setAuthFailed(true);
-        }
-        console.error("[ELGE AUTH]", error);
+        if (cancelled) return;
+        setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");
       }
     }
 
-    checkAuthHeader();
+    bootstrapIdentity();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
   }, []);
 
   return (
     <>
-      <Home authFailed={authFailed} />
+      <Home
+        identityState={identityState}
+        profile={profile}
+      />
       <div id="elge-splash">
         <canvas
           id="elge-canvas"
@@ -72,7 +114,7 @@ export default function App() {
             id="elge-status"
             className="elge-status"
           >
-            Initializing…
+            Initializing...
           </div>
         </div>
       </div>
