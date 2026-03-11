@@ -18,6 +18,7 @@ export default function App() {
   const [identityState, setIdentityState] = useState(AUTH_PENDING_TEXT);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
 
+  // Animation & Engine Boot
   useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
@@ -36,6 +37,7 @@ export default function App() {
     };
   }, []);
 
+  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -100,12 +102,7 @@ export default function App() {
       )}
 
       <div id="elge-splash">
-        <canvas
-          id="elge-canvas"
-          width="512"
-          height="512"
-        />
-
+        <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
           <div className="elge-sub">Low-End Game Engine</div>
