@@ -3,6 +3,7 @@ const DEFAULT_PROXY_BASE = "/api/cloudflare";
 const IDENTITY_STORAGE_KEY = "elge:cloudflare:identity";
 const PROFILE_STORAGE_KEY = "elge:cloudflare:profile";
 const API_UNAVAILABLE_KEY = "elge:cloudflare:api-unavailable";
+const AUTH_API_BASE = "/api/auth";
 
 function getIdentityApiBaseUrl() {
   const configuredProxy = import.meta.env.VITE_CF_IDENTITY_PROXY_URL;
@@ -92,6 +93,23 @@ export function loadCachedProfile() {
 
 export function saveCachedProfile(profile) {
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+}
+
+export function clearCachedProfile() {
+  localStorage.removeItem(PROFILE_STORAGE_KEY);
+}
+
+export async function fetchAuthSessionUser() {
+  const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/me`, { method: "GET" });
+  return payload?.result ?? null;
+}
+
+export function redirectToProviderLogin(provider) {
+  window.location.href = `${AUTH_API_BASE}/login/${encodeURIComponent(provider)}`;
+}
+
+export async function logoutAuthSession() {
+  await fetchJsonWithGuards(`${AUTH_API_BASE}/logout`, { method: "POST" });
 }
 
 export function buildUserProfile(identityResult) {

@@ -1,35 +1,24 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
+import Login from "./pages/Login.jsx";
 import {
-  buildUserProfile,
-  fetchAccessUserUid,
-  fetchUserProfile,
-  loadCachedIdentity,
+  clearCachedProfile,
+  fetchAuthSessionUser,
   loadCachedProfile,
-  saveCachedProfile,
-  saveIdentitySnapshot,
-  upsertUserProfile
+  logoutAuthSession,
+  redirectToProviderLogin,
+  saveCachedProfile
 } from "./utils/authHeader.js";
 
-const IDENTITY_PENDING_TEXT = "Detecting Cloudflare Access UID...";
+const AUTH_PENDING_TEXT = "Checking account session...";
 
-/**
- * App is intentionally thin.
- * It mounts the splash screen and starts ELGE boot.
- */
 export default function App() {
   const initialProfile = loadCachedProfile();
   const [profile, setProfile] = useState(initialProfile);
-  const [identityState, setIdentityState] = useState(IDENTITY_PENDING_TEXT);
+  const [identityState, setIdentityState] = useState(AUTH_PENDING_TEXT);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   // Animation & Engine Boot
-  useEffect(() => {
-    const cachedIdentity = loadCachedIdentity();
-    if (cachedIdentity && cachedIdentity.uid) {
-      setIdentityState(`Cached UID detected: ${cachedIdentity.uid}`);
-    }
-  }, []);
-
   useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
@@ -52,56 +41,66 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    async function bootstrapIdentity() {
+    async function bootstrapAuth() {
       try {
-        const identityResult = await fetchAccessUserUid();
+        const user = await fetchAuthSessionUser();
         if (cancelled) return;
 
-        saveIdentitySnapshot(identityResult);
-
-        const uid = identityResult?.uid;
-        if (!uid) {
-          setIdentityState("Cloudflare Access session detected but UID was missing.");
+        if (!user?.uid) {
+          setProfile(null);
+          setIdentityState("Not signed in.");
+          clearCachedProfile();
+          setIsAuthChecked(true);
           return;
         }
 
-        setIdentityState(`Detected UID: ${uid}`);
-
-        const builtProfile = buildUserProfile(identityResult);
-        saveCachedProfile(builtProfile);
-        setProfile(builtProfile);
-
-        try {
-          const storedProfile = await upsertUserProfile(uid, builtProfile);
-          saveCachedProfile(storedProfile);
-          setProfile(storedProfile);
-
-          const kvProfile = await fetchUserProfile(uid);
-          saveCachedProfile(kvProfile);
-          setProfile(kvProfile);
-        } catch (kvError) {
-          const message = kvError instanceof Error ? kvError.message : "KV sync failed";
-          setIdentityState(`Detected UID: ${uid} (KV sync unavailable: ${message})`);
-        }
-      } catch (error) {
+        saveCachedProfile(user);
+        setProfile(user);
+        setIdentityState(`Signed in as ${user.username || user.email || user.uid}`);
+      } catch {
         if (cancelled) return;
-        setIdentityState(error instanceof Error ? error.message : "Unable to detect Cloudflare identity.");
+        setProfile(null);
+        setIdentityState("Not signed in.");
+        clearCachedProfile();
+      } finally {
+        if (!cancelled) {
+          setIsAuthChecked(true);
+        }
       }
     }
 
-    bootstrapIdentity();
+    bootstrapAuth();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
+  async function handleSignOut() {
+    try {
+      await logoutAuthSession();
+    } finally {
+      clearCachedProfile();
+      setProfile(null);
+      setIdentityState("Not signed in.");
+    }
+  }
+
   return (
     <>
-      <Home
-        identityState={identityState}
-        profile={profile}
-      />
+      {isAuthChecked && !profile ? (
+        <Login
+          onGoogle={() => redirectToProviderLogin("google")}
+          onGithub={() => redirectToProviderLogin("github")}
+        />
+      ) : (
+        <Home
+          identityState={identityState}
+          profile={profile}
+          onSignOut={handleSignOut}
+        />
+      )}
+
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
