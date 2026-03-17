@@ -21,9 +21,25 @@
 #elge-sidebar button {
     width: 100%;
     margin-bottom: 8px;
+    background: #121d33;
+    color: #eaf6ff;
+    border: 1px solid #223455;
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: left;
 }
 
 #elge-main {
     flex: 1;
     padding: 16px;
+    color: #eaf6ff;
+}
+
+.elge-home h2 {
+    margin: 0 0 8px;
+}
+
+.elge-home p {
+    margin: 0 0 12px;
+    opacity: 0.85;
 }
