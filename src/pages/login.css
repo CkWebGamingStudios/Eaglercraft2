@@ -63,6 +63,12 @@
   margin: 10px 0 18px;
 }
 
+.login-error {
+  margin: 0 0 14px;
+  color: #ff9ca8;
+  font-weight: 600;
+}
+
 .login-actions {
   display: grid;
   gap: 10px;

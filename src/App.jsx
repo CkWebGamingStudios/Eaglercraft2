@@ -17,8 +17,19 @@ export default function App() {
   const [profile, setProfile] = useState(initialProfile);
   const [identityState, setIdentityState] = useState(AUTH_PENDING_TEXT);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   // Animation & Engine Boot
+  useEffect(() => {
+    const currentUrl = new URL(window.location.href);
+    const error = currentUrl.searchParams.get("auth_error");
+    if (!error) return;
+
+    setAuthError(error);
+    currentUrl.searchParams.delete("auth_error");
+    window.history.replaceState({}, "", currentUrl.toString());
+  }, []);
+
   useEffect(() => {
     import("./elge/splash.js");
     import("./elge/boot/boot.js");
@@ -92,12 +103,21 @@ export default function App() {
         <Login
           onGoogle={() => redirectToProviderLogin("google")}
           onGithub={() => redirectToProviderLogin("github")}
+          authError={authError}
         />
       ) : (
         <Home
           identityState={identityState}
           profile={profile}
           onSignOut={handleSignOut}
+        />
+      )}
+
+      <div id="elge-splash">
+        <canvas
+          id="elge-canvas"
+          width="512"
+          height="512"
         />
       )}
 

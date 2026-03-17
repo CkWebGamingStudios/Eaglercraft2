@@ -1,6 +1,6 @@
 import "./login.css";
 
-export default function Login({ onGoogle, onGithub }) {
+export default function Login({ onGoogle, onGithub, authError }) {
   return (
     <div className="login-page">
       <header className="login-header">
@@ -13,6 +13,7 @@ export default function Login({ onGoogle, onGithub }) {
           <p className="login-pill">Web Gaming Platform</p>
           <h1>Sign in to Eaglercraft2</h1>
           <p className="login-sub">Continue to Store, Forums, ELGE, GameHopper, Moddit, and GameClipper.</p>
+          {authError && <p className="login-error">{authError}</p>}
 
           <div className="login-actions">
             <button className="login-provider google" onClick={onGoogle} type="button">
