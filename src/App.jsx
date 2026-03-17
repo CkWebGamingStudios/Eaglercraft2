@@ -19,6 +19,7 @@ export default function App() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // Animation & Engine Boot
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
     const error = currentUrl.searchParams.get("auth_error");
@@ -47,6 +48,7 @@ export default function App() {
     };
   }, []);
 
+  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -117,7 +119,10 @@ export default function App() {
           width="512"
           height="512"
         />
+      )}
 
+      <div id="elge-splash">
+        <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
           <div className="elge-sub">Low-End Game Engine</div>
