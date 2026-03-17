@@ -132,8 +132,5 @@ export default function App() {
           >
             Initializing...
           </div>
-        </div>
-      </div>
-    </div>
   );
 }
