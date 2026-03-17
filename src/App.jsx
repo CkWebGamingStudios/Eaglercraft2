@@ -106,11 +106,7 @@ export default function App() {
           authError={authError}
         />
       ) : (
-        <Home
-          identityState={identityState}
-          profile={profile}
-          onSignOut={handleSignOut}
-        />
+        
       )}
 
       <div id="elge-splash">
@@ -119,7 +115,7 @@ export default function App() {
           width="512"
           height="512"
         />
-      )}
+      </div>
 
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
@@ -132,5 +128,8 @@ export default function App() {
           >
             Initializing...
           </div>
+        </div>
+      </div>
+    </div>
   );
 }
