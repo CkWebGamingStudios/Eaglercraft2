@@ -1,63 +1,116 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home.jsx";
+import Login from "./pages/Login.jsx";
 import {
-  fetchAccessJwtHeader,
-  getStoredAccessJwt,
-  storeAccessJwt
+  clearCachedProfile,
+  fetchAuthSessionUser,
+  loadCachedProfile,
+  logoutAuthSession,
+  redirectToProviderLogin,
+  saveCachedProfile
 } from "./utils/authHeader.js";
 
-/**
- * App is intentionally thin.
- * It mounts the splash screen and starts ELGE boot.
- */
+const AUTH_PENDING_TEXT = "Checking account session...";
+
 export default function App() {
-  const [authFailed, setAuthFailed] = useState(false);
+  const initialProfile = loadCachedProfile();
+  const [profile, setProfile] = useState(initialProfile);
+  const [identityState, setIdentityState] = useState(AUTH_PENDING_TEXT);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
-    // Load splash animation
-    import("./elge/splash.js");
+    const currentUrl = new URL(window.location.href);
+    const error = currentUrl.searchParams.get("auth_error");
+    if (!error) return;
 
-    // Start ELGE boot sequence
-    import("./elge/boot/boot.js");
+    setAuthError(error);
+    currentUrl.searchParams.delete("auth_error");
+    window.history.replaceState({}, "", currentUrl.toString());
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    import("./elge/splash.js");
+    import("./elge/boot/boot.js");
 
-    async function checkAuthHeader() {
-      try {
-        const jwtHeader = await fetchAccessJwtHeader();
-        if (!isMounted) return;
-
-        if (!jwtHeader) {
-          setAuthFailed(true);
-          return;
-        }
-
-        const storedJwt = getStoredAccessJwt();
-        if (storedJwt === jwtHeader) {
-          return;
-        }
-
-        storeAccessJwt(jwtHeader);
-      } catch (error) {
-        if (isMounted) {
-          setAuthFailed(true);
-        }
-        console.error("[ELGE AUTH]", error);
+    const fallbackTimer = setTimeout(() => {
+      const splash = document.getElementById("elge-splash");
+      if (splash) {
+        splash.style.opacity = "0";
+        splash.style.transition = "opacity 300ms ease";
+        setTimeout(() => splash.remove(), 300);
       }
-    }
-
-    checkAuthHeader();
+    }, 8000);
 
     return () => {
-      isMounted = false;
+      clearTimeout(fallbackTimer);
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function bootstrapAuth() {
+      try {
+        const user = await fetchAuthSessionUser();
+        if (cancelled) return;
+
+        if (!user?.uid) {
+          setProfile(null);
+          setIdentityState("Not signed in.");
+          clearCachedProfile();
+          setIsAuthChecked(true);
+          return;
+        }
+
+        saveCachedProfile(user);
+        setProfile(user);
+        setIdentityState(`Signed in as ${user.username || user.email || user.uid}`);
+      } catch {
+        if (cancelled) return;
+        setProfile(null);
+        setIdentityState("Not signed in.");
+        clearCachedProfile();
+      } finally {
+        if (!cancelled) {
+          setIsAuthChecked(true);
+        }
+      }
+    }
+
+    bootstrapAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleSignOut() {
+    try {
+      await logoutAuthSession();
+    } finally {
+      clearCachedProfile();
+      setProfile(null);
+      setIdentityState("Not signed in.");
+    }
+  }
+
   return (
     <>
-      <Home authFailed={authFailed} />
+      {isAuthChecked && !profile ? (
+        <Login
+          onGoogle={() => redirectToProviderLogin("google")}
+          onGithub={() => redirectToProviderLogin("github")}
+          authError={authError}
+        />
+      ) : (
+        <Home
+          identityState={identityState}
+          profile={profile}
+          onSignOut={handleSignOut}
+        />
+      )}
+
       <div id="elge-splash">
         <canvas
           id="elge-canvas"
@@ -72,7 +125,7 @@ export default function App() {
             id="elge-status"
             className="elge-status"
           >
-            Initializing…
+            Initializing...
           </div>
         </div>
       </div>
