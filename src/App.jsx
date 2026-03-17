@@ -98,7 +98,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <div id="app-root">
       {isAuthChecked && !profile ? (
         <Login
           onGoogle={() => redirectToProviderLogin("google")}
@@ -134,6 +134,6 @@ export default function App() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
