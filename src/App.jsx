@@ -99,15 +99,15 @@ export default function App() {
 
   return (
     <div id="app-root">
-      {isAuthChecked && !profile ? (
-        <Login
-          onGoogle={() => redirectToProviderLogin("google")}
-          onGithub={() => redirectToProviderLogin("github")}
-          authError={authError}
-        />
-      ) : (
-        
-      )}
+   {isAuthChecked && !profile ? (
+  <Login
+    onGoogle={() => redirectToProviderLogin("google")}
+    onGithub={() => redirectToProviderLogin("github")}
+    authError={authError}
+  />
+) : (
+  <Home profile={profile} onSignOut={handleSignOut} /> 
+)}
 
       <div id="elge-splash">
         <canvas
