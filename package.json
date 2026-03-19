@@ -2,25 +2,25 @@
   "name": "eaglercraft2",
   "version": "0.0.1",
   "private": true,
-  "description": "A Minecraft Port and Eaglercraft Client in Browser Made purely From Typescript , JavaScript and Python and some little Html",
+  "description": "A Minecraft Port and Eaglercraft Client in Browser Made purely From Typescript, JavaScript and Python",
+  "type": "module",
   "keywords": [
     "Minecraft",
     "Browser",
     "Eaglercraft2",
     "JavaScript"
   ],
-  "homepage": "https://github.com/CkWebGamingStudios/Eaglercraft2#readme",
+  "homepage": "https://github.com",
   "bugs": {
-    "url": "https://github.com/CkWebGamingStudios/Eaglercraft2/issues"
+    "url": "https://github.com"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CkWebGamingStudios/Eaglercraft2.git"
+    "url": "https://github.com"
   },
   "license": "ISC",
   "author": "Ck Gaming Studios",
-  "type": "game",
-  "main": "../Eaglercraft2/index.html",
+  "main": "index.html",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -29,24 +29,22 @@
     "server:access": "node server-access-proxy.mjs"
   },
   "dependencies": {
-    "axios": "^1.13.5",
-    "express": "^5.2.1",
-    "react": "^19.2.0",
-    "react-compiler-runtime": "^1.0.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.1"
+    "axios": "^1.7.9",
+    "express": "^5.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^4.7.0",
-    "babel-plugin-react-compiler": "^1.0.0",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "vite": "^4.5.14",
-    "vite-plugin-sitemap": "^0.8.2"
+    "@eslint/js": "^9.17.0",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "vite": "^5.0.0",
+    "vite-plugin-sitemap": "^0.7.1"
   }
 }
