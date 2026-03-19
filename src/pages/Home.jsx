@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import "./home.css";
+import Forums from "./Forums.jsx";
 
 const navItems = [
   { key: "dashboard", label: "Dashboard" },
@@ -99,17 +101,7 @@ export default function Home({ identityState, profile, onSignOut }) {
           />
         );
       case "forums":
-        return (
-          <ServicePage
-            title="EaglerForums"
-            summary="Community hub for discussions, announcements, and support."
-            bullets={[
-              "Post and reply in category threads",
-              "Follow release and event announcements",
-              "Build groups around your favorite games"
-            ]}
-          />
-        );
+        return <Forums />;
       case "elge":
         return (
           <ServicePage
@@ -185,8 +177,8 @@ export default function Home({ identityState, profile, onSignOut }) {
       <header className="topbar">
         <div className="brand">EAGLERCRAFT2</div>
         <nav>
-          <a href="#">Store</a>
-          <a href="#">Forums</a>
+          <Link to="/store">Store</Link>
+          <Link to="/forums">Forums</Link>
           <a href="#">Docs</a>
           <a href="#">Mods</a>
           <a href="#">Clips</a>
