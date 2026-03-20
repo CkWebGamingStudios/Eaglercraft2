@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "axios": "^1.7.9",
-    "express": "^5.0.1",
+    "express": "^4.19.2",
     "react": "^19.0.0",
     "react-compiler-runtime": "^0.0.0-experimental-592953e-20240517",
     "react-dom": "^19.0.0",
