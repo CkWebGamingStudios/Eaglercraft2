@@ -5,7 +5,7 @@ const Forums = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [visibleComments, setVisibleComments] = useState(null); // holds the id of the message whose comments are visible
+  const [visibleComments, setVisibleComments] = useState(null);
 
   const fetchMessages = async () => {
     try {
@@ -78,7 +78,6 @@ const Forums = () => {
     }
   };
 
-
   useEffect(() => {
     fetchMessages();
   }, []);
@@ -93,16 +92,18 @@ const Forums = () => {
           placeholder="Write your message..."
           rows="4"
         />
-        <button type="submit">Post Message</button>
+        <button type="submit" >Post Message</button>
       </form>
       <div className="messages-list">
         {messages.map((msg) => (
           <div key={msg.id} className="message-item">
             <p>{msg.message}</p>
-            <button onClick={() => handleDeleteMessage(msg.id)}>Delete</button>
-            <button onClick={() => toggleComments(msg.id)}>
+            <div className='message-actions'>
+            <button onClick={() => handleDeleteMessage(msg.id)} >Delete</button>
+            <button onClick={() => toggleComments(msg.id)} >
               {visibleComments === msg.id ? 'Hide Comments' : 'Show Comments'} ({msg.comments ? msg.comments.length : 0})
             </button>
+            </div>
             {visibleComments === msg.id && (
               <div className="comments-section">
                 <form onSubmit={(e) => {
@@ -115,7 +116,7 @@ const Forums = () => {
                     placeholder="Write a comment..."
                     rows="2"
                   />
-                  <button type="submit">Post Comment</button>
+                  <button type="submit" >Post Comment</button>
                 </form>
                 <div className="comments-list">
                   {msg.comments && msg.comments.map((comment, index) => (

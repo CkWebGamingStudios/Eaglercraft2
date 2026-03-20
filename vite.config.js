@@ -31,6 +31,10 @@ export default defineConfig(({ mode }) => {
               }
             });
           }
+        },
+        "/api/forums": {
+          target: "http://localhost:3001",
+          changeOrigin: true
         }
       }
     }

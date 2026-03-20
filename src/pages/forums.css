@@ -1,55 +1,93 @@
-.forums-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: sans-serif;
+
+:root {
+  --primary-color: #1a1a1a;
+  --secondary-color: #2a2a2a;
+  --text-color: #ffffff;
+  --border-color: #444444;
+  --accent-color: #00ff99;
 }
 
-.message-form textarea {
-  width: 100%;
-  padding: 0.5rem;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
+.forums-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: var(--primary-color);
+  border-radius: 8px;
+  color: var(--text-color);
+}
+
+h1 {
+  color: var(--accent-color);
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.message-form {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2rem;
+}
+
+.message-form textarea, 
+.comments-section textarea {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
+  padding: 1rem;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  resize: vertical;
+}
+
+.message-form textarea:focus, 
+.comments-section textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+button {
+  padding: 0.8rem 1.5rem;
+  background-color: var(--accent-color);
+  color: #000000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #00cc7a;
 }
 
 .messages-list .message-item {
-  background: #f9f9f9;
-  border: 1px solid #eee;
-  padding: 1rem;
+  background-color: var(--secondary-color);
+  padding: 1.5rem;
+  border-radius: 4px;
   margin-bottom: 1rem;
-  border-radius: 4px;
+  border: 1px solid var(--border-color);
 }
 
-.message-item button {
-  margin-right: 0.5rem;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
+.message-item p {
+  margin-bottom: 1rem;
 }
 
-.message-item button:hover {
-  background: #eee;
+.message-item .message-actions {
+  display: flex;
+  gap: 1rem;
 }
 
 .comments-section {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-.comments-section textarea {
-  width: 100%;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
 }
 
 .comments-list .comment-item {
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .comment-item:last-child {
@@ -57,6 +95,8 @@
 }
 
 .comment-timestamp {
-  font-size: 0.8em;
-  color: #888;
+  font-size: 0.8rem;
+  color: #a0a0a0;
+  margin-top: 0.5rem;
+  display: block;
 }

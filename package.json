@@ -26,10 +26,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "server:access": "node server-access-proxy.mjs"
+    "start:server": "node server.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
+    "body-parser": "^1.20.2",
     "express": "^5.0.1",
     "react": "^19.0.0",
     "react-compiler-runtime": "^0.0.0-experimental-592953e-20240517",
