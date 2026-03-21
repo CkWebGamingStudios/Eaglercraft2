@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Forums from "./pages/Forums.jsx";
+import Navbar from "./Navbar.jsx"; // Import the new Navbar component
 import { clearCachedProfile, fetchAuthSessionUser, loadCachedProfile, logoutAuthSession, redirectToProviderLogin, saveCachedProfile } from "./utils/authHeader.js";
 
 const AUTH_PENDING_TEXT = "Checking account session...";
@@ -98,14 +99,13 @@ export default function App() {
         <Login onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} authError={authError} />
       ) : (
         <>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/forums">Forums</Link>
-          </nav>
-          <Routes>
-            <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
-            <Route path="/forums" element={<Forums />} />
-          </Routes>
+          <Navbar onSignOut={handleSignOut} />
+          <main className="content-layout">
+            <Routes>
+              <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
+              <Route path="/forums" element={<Forums />} />
+            </Routes>
+          </main>
         </>
       )}
 
