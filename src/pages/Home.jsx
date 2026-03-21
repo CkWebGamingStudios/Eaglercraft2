@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./home.css";
 
 const navItems = [
@@ -84,6 +84,7 @@ function ServicePage({ title, summary, bullets }) {
 
 export default function Home({ identityState, profile, onSignOut }) {
   const [activePage, setActivePage] = useState("dashboard");
+  const navigate = useNavigate();
 
   const pageContent = useMemo(() => {
     switch (activePage) {
@@ -169,6 +170,14 @@ export default function Home({ identityState, profile, onSignOut }) {
     }
   }, [activePage, identityState, profile]);
 
+  const handleNavClick = (item) => {
+    if (item.key === 'forums') {
+      navigate('/forums');
+    } else {
+      setActivePage(item.key);
+    }
+  };
+
   return (
     <div className="home">
       <header className="topbar">
@@ -191,7 +200,7 @@ export default function Home({ identityState, profile, onSignOut }) {
             <button
               key={item.key}
               className={item.key === activePage ? "active" : ""}
-              onClick={() => setActivePage(item.key)}
+              onClick={() => handleNavClick(item)}
               type="button"
             >
               {item.label}
