@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import "./home.css";
-import Forums from "./Forums.jsx";
 
 const navItems = [
   { key: "dashboard", label: "Dashboard" },
@@ -100,8 +99,6 @@ export default function Home({ identityState, profile, onSignOut }) {
             ]}
           />
         );
-      case "forums":
-        return <Forums />;
       case "elge":
         return (
           <ServicePage
