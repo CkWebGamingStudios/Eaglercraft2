@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "./home.css";
 
 const navItems = [
@@ -83,6 +84,7 @@ function ServicePage({ title, summary, bullets }) {
 
 export default function Home({ identityState, profile, onSignOut }) {
   const [activePage, setActivePage] = useState("dashboard");
+  const navigate = useNavigate();
 
   const pageContent = useMemo(() => {
     switch (activePage) {
@@ -95,18 +97,6 @@ export default function Home({ identityState, profile, onSignOut }) {
               "Featured games and new releases",
               "Genre and popularity filtering",
               "Direct browser launch flow"
-            ]}
-          />
-        );
-      case "forums":
-        return (
-          <ServicePage
-            title="EaglerForums"
-            summary="Community hub for discussions, announcements, and support."
-            bullets={[
-              "Post and reply in category threads",
-              "Follow release and event announcements",
-              "Build groups around your favorite games"
             ]}
           />
         );
@@ -180,21 +170,16 @@ export default function Home({ identityState, profile, onSignOut }) {
     }
   }, [activePage, identityState, profile]);
 
+  const handleNavClick = (item) => {
+    if (item.key === 'forums') {
+      navigate('/forums');
+    } else {
+      setActivePage(item.key);
+    }
+  };
+
   return (
     <div className="home">
-      <header className="topbar">
-        <div className="brand">EAGLERCRAFT2</div>
-        <nav>
-          <a href="#">Store</a>
-          <a href="#">Forums</a>
-          <a href="#">Docs</a>
-          <a href="#">Mods</a>
-          <a href="#">Clips</a>
-        </nav>
-        <button className="cta">Launch</button>
-        <button className="cta ghost" type="button" onClick={onSignOut}>Sign Out</button>
-      </header>
-
       <div className="layout">
         <aside className="sidebar">
           <h3>Platform</h3>
@@ -202,7 +187,7 @@ export default function Home({ identityState, profile, onSignOut }) {
             <button
               key={item.key}
               className={item.key === activePage ? "active" : ""}
-              onClick={() => setActivePage(item.key)}
+              onClick={() => handleNavClick(item)}
               type="button"
             >
               {item.label}

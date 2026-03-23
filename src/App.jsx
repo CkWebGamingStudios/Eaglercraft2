@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
-import {
-  clearCachedProfile,
-  fetchAuthSessionUser,
-  loadCachedProfile,
-  logoutAuthSession,
-  redirectToProviderLogin,
-  saveCachedProfile
-} from "./utils/authHeader.js";
+import Forums from "./pages/Forums.jsx";
+import Navbar from "./Navbar.jsx"; // Import the new Navbar component
+import { clearCachedProfile, fetchAuthSessionUser, loadCachedProfile, logoutAuthSession, redirectToProviderLogin, saveCachedProfile } from "./utils/authHeader.js";
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -100,25 +96,17 @@ export default function App() {
   return (
     <div id="app-root">
       {isAuthChecked && !profile ? (
-        <Login
-          onGoogle={() => redirectToProviderLogin("google")}
-          onGithub={() => redirectToProviderLogin("github")}
-          authError={authError}
-        />
+        <Login onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} authError={authError} />
       ) : (
-        <Home
-          identityState={identityState}
-          profile={profile}
-          onSignOut={handleSignOut}
-        />
-      )}
-
-      <div id="elge-splash">
-        <canvas
-          id="elge-canvas"
-          width="512"
-          height="512"
-        />
+        <>
+          <Navbar onSignOut={handleSignOut} />
+          <main className="content-layout">
+            <Routes>
+              <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
+              <Route path="/forums" element={<Forums />} />
+            </Routes>
+          </main>
+        </>
       )}
 
       <div id="elge-splash">
@@ -126,12 +114,7 @@ export default function App() {
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
           <div className="elge-sub">Low-End Game Engine</div>
-          <div
-            id="elge-status"
-            className="elge-status"
-          >
-            Initializing...
-          </div>
+          <div id="elge-status" className="elge-status">Initializing...</div>
         </div>
       </div>
     </div>
