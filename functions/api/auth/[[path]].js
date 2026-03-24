@@ -113,6 +113,14 @@ function redirectWithError(origin, message) {
   return Response.redirect(next.toString(), 302);
 }
 
+function normalizedEmail(email) {
+  if (!email || typeof email !== "string") {
+    return "";
+  }
+
+  return email.trim().toLowerCase();
+}
+
 async function exchangeToken(provider, config, code) {
   if (provider === "google") {
     const response = await fetch(config.tokenUrl, {
@@ -251,10 +259,24 @@ export async function onRequest(context) {
       const identity = await fetchProviderIdentity(provider, accessToken);
       const mapKey = `auth:map:${provider}:${identity.providerId}`;
       const mappedUid = await adapter.get(mapKey);
-      const uid = mappedUid || crypto.randomUUID();
+      const emailKey = identity.email ? `auth:email:${normalizedEmail(identity.email)}` : "";
+      const emailMappedUid = emailKey ? await adapter.get(emailKey) : null;
+      const existingUid = mappedUid || emailMappedUid;
+
+      if (existingUid) {
+        const existingProfileRaw = (await adapter.get(`auth:user:${existingUid}`)) || (await adapter.get(existingUid));
+        if (!existingProfileRaw) {
+          return redirectWithError(url.origin, "This account has been deleted and can no longer sign in.");
+        }
+      }
+
+      const uid = existingUid || crypto.randomUUID();
 
       if (!mappedUid) {
         await adapter.put(mapKey, uid);
+      }
+      if (emailKey) {
+        await adapter.put(emailKey, uid);
       }
 
       const profile = {
@@ -296,8 +318,11 @@ export async function onRequest(context) {
     if (!sessionRaw) return json(401, { success: false, errors: [{ message: "Session expired" }] });
 
     const session = JSON.parse(sessionRaw);
-    const userRaw = await adapter.get(`auth:user:${session.uid}`) || await adapter.get(session.uid);
-    if (!userRaw) return json(404, { success: false, errors: [{ message: "User not found" }] });
+    const userRaw = (await adapter.get(`auth:user:${session.uid}`)) || (await adapter.get(session.uid));
+    if (!userRaw) {
+      await adapter.del(`auth:session:${sessionToken}`);
+      return json(401, { success: false, errors: [{ message: "User no longer exists" }] }, { "Set-Cookie": clearSessionCookie(isSecure) });
+    }
 
     return json(200, { success: true, result: JSON.parse(userRaw) });
   }
