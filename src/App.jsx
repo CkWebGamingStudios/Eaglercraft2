@@ -3,8 +3,15 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Forums from "./pages/ForumsV2.jsx";
-import Navbar from "./Navbar.jsx"; // Import the new Navbar component
-import { clearCachedProfile, fetchAuthSessionUser, loadCachedProfile, logoutAuthSession, redirectToProviderLogin, saveCachedProfile } from "./utils/authHeader.js";
+import Navbar from "./Navbar.jsx";
+import {
+  clearCachedProfile,
+  fetchAuthSessionUser,
+  loadCachedProfile,
+  logoutAuthSession,
+  redirectToProviderLogin,
+  saveCachedProfile
+} from "./utils/authHeader.js";
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -15,7 +22,6 @@ export default function App() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Animation & Engine Boot
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
     const error = currentUrl.searchParams.get("auth_error");
@@ -44,7 +50,6 @@ export default function App() {
     };
   }, []);
 
-  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -90,24 +95,32 @@ export default function App() {
       clearCachedProfile();
       setProfile(null);
       setIdentityState("Not signed in.");
+      setIsAuthChecked(true);
     }
+  }
+
+  let page;
+  if (!isAuthChecked) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else if (!profile) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else {
+    page = (
+      <>
+        <Navbar onSignOut={handleSignOut} />
+        <main className="content-layout">
+          <Routes>
+            <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
+            <Route path="/forums" element={<Forums profile={profile} />} />
+          </Routes>
+        </main>
+      </>
+    );
   }
 
   return (
     <div id="app-root">
-      {isAuthChecked && !profile ? (
-        <Login onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} authError={authError} />
-      ) : (
-        <>
-          <Navbar onSignOut={handleSignOut} />
-          <main className="content-layout">
-            <Routes>
-              <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
-              <Route path="/forums" element={<Forums />} />
-            </Routes>
-          </main>
-        </>
-      )}
+      {page}
 
       <div id="elge-splash">
         <canvas id="elge-canvas" width="512" height="512" />
