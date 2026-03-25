@@ -3,8 +3,15 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Forums from "./pages/ForumsV2.jsx";
-import Navbar from "./Navbar.jsx"; // Import the new Navbar component
-import { clearCachedProfile, fetchAuthSessionUser, loadCachedProfile, logoutAuthSession, redirectToProviderLogin, saveCachedProfile } from "./utils/authHeader.js";
+import Navbar from "./Navbar.jsx";
+import {
+  clearCachedProfile,
+  fetchAuthSessionUser,
+  loadCachedProfile,
+  logoutAuthSession,
+  redirectToProviderLogin,
+  saveCachedProfile
+} from "./utils/authHeader.js";
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -15,7 +22,6 @@ export default function App() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Animation & Engine Boot
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
     const error = currentUrl.searchParams.get("auth_error");
@@ -28,23 +34,35 @@ export default function App() {
 
   useEffect(() => {
     import("./elge/splash.js");
-    import("./elge/boot/boot.js");
 
-    const fallbackTimer = setTimeout(() => {
-      const splash = document.getElementById("elge-splash");
-      if (splash) {
-        splash.style.opacity = "0";
-        splash.style.transition = "opacity 300ms ease";
-        setTimeout(() => splash.remove(), 300);
+    let fallbackTimer = null;
+
+    if (isAuthChecked && profile) {
+      import("./elge/boot/boot.js");
+      fallbackTimer = setTimeout(() => {
+        const splash = document.getElementById("elge-splash");
+        if (splash) {
+          splash.style.opacity = "0";
+          splash.style.transition = "opacity 300ms ease";
+          setTimeout(() => splash.remove(), 300);
+        }
+      }, 8000);
+    }
+
+    if (!profile) {
+      const elgeHub = document.getElementById("elge-hub");
+      if (elgeHub) {
+        elgeHub.remove();
       }
-    }, 8000);
+    }
 
     return () => {
-      clearTimeout(fallbackTimer);
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
     };
-  }, []);
+  }, [isAuthChecked, profile]);
 
-  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -90,26 +108,34 @@ export default function App() {
       clearCachedProfile();
       setProfile(null);
       setIdentityState("Not signed in.");
+      setIsAuthChecked(true);
     }
+  }
+
+  let page;
+  if (!isAuthChecked) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else if (!profile) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else {
+    page = (
+      <>
+        <Navbar onSignOut={handleSignOut} />
+        <main className="content-layout">
+          <Routes>
+            <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
+            <Route path="/forums" element={<Forums profile={profile} />} />
+          </Routes>
+        </main>
+      </>
+    );
   }
 
   return (
     <div id="app-root">
-      {isAuthChecked && !profile ? (
-        <Login onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} authError={authError} />
-      ) : (
-        <>
-          <Navbar onSignOut={handleSignOut} />
-          <main className="content-layout">
-            <Routes>
-              <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
-              <Route path="/forums" element={<Forums />} />
-            </Routes>
-          </main>
-        </>
-      )}
+      {page}
 
-      <div id="elge-splash">
+      <div id="elge-splash" style={{ display: isAuthChecked && profile ? "flex" : "none" }}>
         <canvas id="elge-canvas" width="512" height="512" />
         <div className="elge-text">
           <div className="elge-title">ELGE</div>
