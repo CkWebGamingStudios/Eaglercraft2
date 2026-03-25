@@ -121,6 +121,33 @@ function normalizedEmail(email) {
   return email.trim().toLowerCase();
 }
 
+function buildGitHubHeaders(accessToken) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Eaglercraft2-Auth"
+  };
+}
+
+async function parseProviderError(response, defaultMessage) {
+  const body = await response.text();
+  let errorMessage = defaultMessage;
+
+  if (body) {
+    try {
+      const parsed = JSON.parse(body);
+      const providerMessage = parsed?.error_description || parsed?.error || parsed?.message;
+      if (typeof providerMessage === "string" && providerMessage.trim()) {
+        errorMessage = `${defaultMessage}: ${providerMessage}`;
+      }
+    } catch {
+      errorMessage = `${defaultMessage}: ${body.slice(0, 200)}`;
+    }
+  }
+
+  return new Error(`${errorMessage} (HTTP ${response.status})`);
+}
+
 async function exchangeToken(provider, config, code) {
   if (provider === "google") {
     const response = await fetch(config.tokenUrl, {
@@ -151,7 +178,7 @@ async function exchangeToken(provider, config, code) {
       redirect_uri: config.redirectUri
     })
   });
-  if (!response.ok) throw new Error("GitHub token exchange failed");
+  if (!response.ok) throw await parseProviderError(response, "GitHub token exchange failed");
   return response.json();
 }
 
@@ -171,21 +198,15 @@ async function fetchProviderIdentity(provider, accessToken) {
   }
 
   const response = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/vnd.github+json"
-    }
+    headers: buildGitHubHeaders(accessToken)
   });
-  if (!response.ok) throw new Error("GitHub user lookup failed");
+  if (!response.ok) throw await parseProviderError(response, "GitHub user lookup failed");
   const profile = await response.json();
 
   let email = profile.email || "";
   if (!email) {
     const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json"
-      }
+      headers: buildGitHubHeaders(accessToken)
     });
     if (emailsResponse.ok) {
       const emails = await emailsResponse.json();
