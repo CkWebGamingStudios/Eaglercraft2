@@ -38,6 +38,13 @@ function getKvAdapter(env) {
       },
       async del(key) {
         await binding.delete(key);
+      },
+      async list(prefix, cursor) {
+        const result = await binding.list({ prefix, cursor });
+        return {
+          keys: Array.isArray(result?.keys) ? result.keys.map((entry) => ({ name: entry.name })) : [],
+          cursor: result?.list_complete ? "" : (result?.cursor || "")
+        };
       }
     };
   }
@@ -47,18 +54,19 @@ function getKvAdapter(env) {
   const accountId = env.CF_ACCOUNT_ID || DEFAULT_ACCOUNT_ID;
   if (!token || !namespaceId) return null;
 
-  const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values`;
+  const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}`;
+  const valueBase = `${base}/values`;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   return {
     async get(key) {
-      const response = await fetch(`${base}/${encodeURIComponent(key)}`, { headers: authHeaders });
+      const response = await fetch(`${valueBase}/${encodeURIComponent(key)}`, { headers: authHeaders });
       if (response.status === 404) return null;
       if (!response.ok) throw new Error(`KV API get failed: ${response.status}`);
       return response.text();
     },
     async put(key, value) {
-      const response = await fetch(`${base}/${encodeURIComponent(key)}`, {
+      const response = await fetch(`${valueBase}/${encodeURIComponent(key)}`, {
         method: "PUT",
         headers: { ...authHeaders, "Content-Type": "text/plain" },
         body: value
@@ -66,7 +74,23 @@ function getKvAdapter(env) {
       if (!response.ok) throw new Error(`KV API put failed: ${response.status}`);
     },
     async del(key) {
-      await fetch(`${base}/${encodeURIComponent(key)}`, { method: "DELETE", headers: authHeaders });
+      await fetch(`${valueBase}/${encodeURIComponent(key)}`, { method: "DELETE", headers: authHeaders });
+    },
+    async list(prefix = "", cursor = "") {
+      const listUrl = new URL(`${base}/keys`);
+      if (prefix) listUrl.searchParams.set("prefix", prefix);
+      if (cursor) listUrl.searchParams.set("cursor", cursor);
+      listUrl.searchParams.set("limit", "1000");
+
+      const response = await fetch(listUrl.toString(), { headers: authHeaders });
+      if (!response.ok) throw new Error(`KV API list failed: ${response.status}`);
+      const payload = await response.json();
+      const result = payload?.result || [];
+      const info = payload?.result_info || {};
+      return {
+        keys: result.map((entry) => ({ name: entry.name })),
+        cursor: info?.cursor || ""
+      };
     }
   };
 }
@@ -126,6 +150,20 @@ async function readSessionUser(adapter, request) {
   if (!userRaw) return { error: "User no longer exists", status: 401, sessionToken };
 
   return { sessionToken, session, user: JSON.parse(userRaw) };
+}
+
+async function listKeysByPrefix(adapter, prefix) {
+  const keys = [];
+  let cursor = "";
+
+  do {
+    const page = await adapter.list(prefix, cursor);
+    const pageKeys = Array.isArray(page?.keys) ? page.keys : [];
+    keys.push(...pageKeys);
+    cursor = page?.cursor || "";
+  } while (cursor);
+
+  return keys;
 }
 
 function normalizedEmail(email) {
@@ -253,6 +291,55 @@ export async function onRequest(context) {
   const tail = authIndex >= 0 ? segments.slice(authIndex + 1) : [];
   const action = tail[0] || "";
   const provider = tail[1] || "";
+
+  if (request.method === "GET" && action === "users") {
+    const userKeys = await listKeysByPrefix(adapter, "auth:user:");
+    const sessionKeys = await listKeysByPrefix(adapter, "auth:session:");
+
+    const onlineUidSet = new Set();
+    for (const keyEntry of sessionKeys) {
+      const sessionRaw = await adapter.get(keyEntry.name);
+      if (!sessionRaw) continue;
+      try {
+        const parsed = JSON.parse(sessionRaw);
+        if (parsed?.uid) {
+          onlineUidSet.add(parsed.uid);
+        }
+      } catch {
+        // ignore malformed session entries
+      }
+    }
+
+    const users = [];
+    for (const keyEntry of userKeys) {
+      const userRaw = await adapter.get(keyEntry.name);
+      if (!userRaw) continue;
+      try {
+        const user = JSON.parse(userRaw);
+        users.push({
+          uid: user.uid,
+          username: user.username || "User",
+          profilePicture: user.profilePicture || "",
+          bio: user.bio || "",
+          country: user.country || "",
+          updatedAt: user.updatedAt || "",
+          isOnline: Boolean(user.uid && onlineUidSet.has(user.uid))
+        });
+      } catch {
+        // ignore malformed user entries
+      }
+    }
+
+    users.sort((a, b) => {
+      if (a.isOnline !== b.isOnline) {
+        return a.isOnline ? -1 : 1;
+      }
+
+      return String(a.username).localeCompare(String(b.username));
+    });
+
+    return json(200, { success: true, result: users });
+  }
 
   if (request.method === "GET" && action === "login") {
     const config = providerConfig(provider, env, url.origin);

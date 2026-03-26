@@ -5,8 +5,12 @@ import "./forumsv2.css";
 export default function ForumsV2({ profile }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [newTitle, setNewTitle] = useState("");
   const [commentDrafts, setCommentDrafts] = useState({});
   const [expandedMessageId, setExpandedMessageId] = useState(null);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   async function loadMessages() {
     try {
@@ -25,15 +29,17 @@ export default function ForumsV2({ profile }) {
 
   async function handlePostMessage(event) {
     event.preventDefault();
-    const trimmed = newMessage.trim();
-    if (!trimmed) return;
+    const trimmedTitle = newTitle.trim();
+    const trimmedContent = newMessage.trim();
+    if (!trimmedTitle || !trimmedContent) return;
 
     try {
       const response = await fetch("/api/forums", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: trimmed,
+          title: trimmedTitle,
+          content: trimmedContent,
           authorId: profile?.uid || "anonymous-user",
           authorName: profile?.username || "Anonymous",
           authorPicture: profile?.profilePicture || ""
@@ -41,6 +47,7 @@ export default function ForumsV2({ profile }) {
       });
 
       if (!response.ok) return;
+      setNewTitle("");
       setNewMessage("");
       await loadMessages();
     } catch (error) {
@@ -74,6 +81,56 @@ export default function ForumsV2({ profile }) {
     }
   }
 
+  function beginEdit(post) {
+    setEditingPostId(post.id);
+    setEditTitle(post.title || "");
+    setEditContent(post.content || post.message || "");
+  }
+
+  async function handleSaveEdit(postId) {
+    const trimmedTitle = editTitle.trim();
+    const trimmedContent = editContent.trim();
+    if (!trimmedTitle || !trimmedContent) return;
+
+    try {
+      const response = await fetch(`/api/forums/${postId}/edit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: trimmedTitle,
+          content: trimmedContent,
+          authorId: profile?.uid || ""
+        })
+      });
+
+      if (!response.ok) return;
+      setEditingPostId(null);
+      setEditTitle("");
+      setEditContent("");
+      await loadMessages();
+    } catch (error) {
+      console.error("Failed to edit post", error);
+    }
+  }
+
+  async function handleDeletePost(postId) {
+    const confirmed = window.confirm("Delete this post permanently?");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/forums/${postId}/delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorId: profile?.uid || "" })
+      });
+
+      if (!response.ok) return;
+      await loadMessages();
+    } catch (error) {
+      console.error("Failed to delete post", error);
+    }
+  }
+
   return (
     <section className="forums-v2-page">
       <div className="forums-v2-shell">
@@ -86,7 +143,15 @@ export default function ForumsV2({ profile }) {
         </header>
 
         <form onSubmit={handlePostMessage} className="forums-v2-composer">
-          <label htmlFor="forum-message">Post a message</label>
+          <label htmlFor="forum-title">Post title</label>
+          <input
+            id="forum-title"
+            value={newTitle}
+            onChange={(event) => setNewTitle(event.target.value)}
+            placeholder="Add a short title"
+            maxLength={80}
+          />
+          <label htmlFor="forum-message">Post message</label>
           <textarea
             id="forum-message"
             value={newMessage}
@@ -103,6 +168,8 @@ export default function ForumsV2({ profile }) {
           {messages.map((message) => {
             const isExpanded = expandedMessageId === message.id;
             const comments = Array.isArray(message.comments) ? message.comments : [];
+            const isOwner = profile?.uid && message.authorId === profile.uid;
+            const isEditing = editingPostId === message.id;
 
             return (
               <article key={message.id} className="forums-v2-card">
@@ -118,7 +185,29 @@ export default function ForumsV2({ profile }) {
                     <p className="forums-v2-author-meta">{message.createdAt ? new Date(message.createdAt).toLocaleString() : ""}</p>
                   </div>
                 </div>
-                <p className="forums-v2-message">{message.content || message.message || message.title}</p>
+
+                {isEditing ? (
+                  <div className="forums-v2-editor">
+                    <input value={editTitle} maxLength={80} onChange={(event) => setEditTitle(event.target.value)} />
+                    <textarea rows={4} value={editContent} onChange={(event) => setEditContent(event.target.value)} />
+                    <div className="forums-v2-inline-actions">
+                      <button type="button" onClick={() => handleSaveEdit(message.id)}>Save</button>
+                      <button type="button" className="ghost" onClick={() => setEditingPostId(null)}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="forums-v2-title">{message.title || "Untitled Post"}</h3>
+                    <p className="forums-v2-message">{message.content || message.message || message.title}</p>
+                  </>
+                )}
+
+                {isOwner && !isEditing && (
+                  <div className="forums-v2-inline-actions">
+                    <button type="button" onClick={() => beginEdit(message)}>Moddit</button>
+                    <button type="button" className="danger" onClick={() => handleDeletePost(message.id)}>Delete</button>
+                  </div>
+                )}
 
                 <button
                   type="button"

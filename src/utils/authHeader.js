@@ -125,6 +125,14 @@ export async function deleteAuthAccount() {
   return fetchJsonWithGuards(`${AUTH_API_BASE}/account`, { method: "DELETE" });
 }
 
+
+export async function fetchAllUsers() {
+  const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/users`, {
+    method: "GET"
+  });
+  return payload?.result ?? [];
+}
+
 export async function fetchPublicUserProfile(uid) {
   const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/user/${encodeURIComponent(uid)}`, {
     method: "GET"

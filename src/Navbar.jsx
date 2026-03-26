@@ -9,8 +9,9 @@ export default function Navbar({ onSignOut }) {
         <Link to="/">Home</Link>
         <Link to="/store">Store</Link>
         <Link to="/forums">Forums</Link>
+        <Link to="/users">Users</Link>
         <Link to="/settings">Settings</Link>
-        <a href="#">Docs</a>
+        <Link to="/docs">Docs</Link>
         <a href="#">Mods</a>
         <a href="#">Clips</a>
       </nav>

@@ -5,6 +5,8 @@ import Login from "./pages/Login.jsx";
 import Forums from "./pages/ForumsV2.jsx";
 import UserSettings from "./pages/UserSettings.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
+import UsersDirectory from "./pages/UsersDirectory.jsx";
+import Docs from "./pages/Docs.jsx";
 import Navbar from "./Navbar.jsx";
 import {
   clearCachedProfile,
@@ -109,7 +111,9 @@ export default function App() {
             <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
             <Route path="/forums" element={<Forums profile={profile} />} />
             <Route path="/settings" element={<UserSettings profile={profile} onProfileUpdated={handleProfileUpdated} />} />
+            <Route path="/users" element={<UsersDirectory />} />
             <Route path="/users/:uid" element={<UserProfile />} />
+            <Route path="/docs" element={<Docs />} />
           </Routes>
         </main>
       </>
