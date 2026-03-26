@@ -1,1 +1,70 @@
-export async function onRequest(context){const{request,env}=context;const kv=env.ELGE_FORUMS;if(!kv)return new Response(JSON.stringify({error:"ELGE_FORUMS KV not bound"}),{status:500,headers:{"Content-Type":"application/json"}});const method=request.method;const url=new URL(request.url);const json=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"Content-Type":"application/json"}});const posts=await kv.get("posts","json")||[];if(method==="GET"&&url.pathname.endsWith("/forums"))return json(posts);if(method==="POST"&&url.pathname.endsWith("/forums")){let body;try{body=await request.json()}catch{return json({error:"Invalid JSON"},400)}const{title,content,image,links,authorId,authorName}=body;if(!title?.trim()||!content?.trim()||!authorId)return json({error:"Missing fields"},400);const post={id:crypto.randomUUID(),title:title.trim(),content:content.trim(),image:image||null,links:links||[],authorId,authorName:authorName||"Unknown",upvotes:0,comments:[],createdAt:Date.now()};posts.unshift(post);await kv.put("posts",JSON.stringify(posts));return json(post,201)}return json({error:"Method Not Allowed"},405)}
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
+export async function onRequest(context) {
+  const { request, env } = context;
+  const kv = env.ELGE_FORUMS;
+  if (!kv) return json({ error: "ELGE_FORUMS KV not bound" }, 500);
+
+  const posts = (await kv.get("posts", "json")) || [];
+
+  if (request.method === "GET") {
+    return json(posts);
+  }
+
+  if (request.method === "POST") {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON" }, 400);
+    }
+
+    const authorId = body.authorId || "anonymous-user";
+    const authorName = body.authorName || "Anonymous";
+    const authorPicture = typeof body.authorPicture === "string" ? body.authorPicture : "";
+
+    const legacyMessage = typeof body.message === "string" ? body.message.trim() : "";
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const content = typeof body.content === "string" ? body.content.trim() : "";
+
+    let nextTitle = title;
+    let nextContent = content;
+
+    if (legacyMessage && !nextContent) {
+      const [firstLine, ...rest] = legacyMessage.split("\n");
+      nextTitle = nextTitle || (firstLine || "Forum message").slice(0, 80);
+      nextContent = rest.join("\n").trim() || legacyMessage;
+    }
+
+    if (!nextTitle || !nextContent) {
+      return json({ error: "Missing fields" }, 400);
+    }
+
+    const post = {
+      id: crypto.randomUUID(),
+      title: nextTitle,
+      content: nextContent,
+      message: nextContent,
+      image: body.image || null,
+      links: Array.isArray(body.links) ? body.links : [],
+      authorId,
+      authorName,
+      authorPicture,
+      upvotes: 0,
+      comments: [],
+      commentsCount: 0,
+      createdAt: Date.now()
+    };
+
+    posts.unshift(post);
+    await kv.put("posts", JSON.stringify(posts));
+    return json(post, 201);
+  }
+
+  return json({ error: "Method Not Allowed" }, 405);
+}
