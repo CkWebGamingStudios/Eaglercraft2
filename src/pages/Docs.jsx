@@ -10,7 +10,7 @@ export default function Docs() {
           <ul>
             <li>How to create and publish posts in forums.</li>
             <li>How profile settings work (avatar, bio, country, username).</li>
-            <li>How to use Moddit tools to edit your own posts.</li>
+            <li>How developers can upload mods on Moddit (title, description, game, image, required download link).</li>
             <li>How to report bugs and share gameplay feedback.</li>
           </ul>
         </div>

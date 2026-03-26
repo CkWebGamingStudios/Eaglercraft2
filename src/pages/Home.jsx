@@ -175,6 +175,8 @@ export default function Home({ identityState, profile, onSignOut }) {
       navigate('/forums');
     } else if (item.key === "profile") {
       navigate("/settings");
+    } else if (item.key === "moddit") {
+      navigate("/moddit");
     } else {
       setActivePage(item.key);
     }

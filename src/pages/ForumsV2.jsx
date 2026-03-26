@@ -204,7 +204,7 @@ export default function ForumsV2({ profile }) {
 
                 {isOwner && !isEditing && (
                   <div className="forums-v2-inline-actions">
-                    <button type="button" onClick={() => beginEdit(message)}>Moddit</button>
+                    <button type="button" onClick={() => beginEdit(message)}>Edit</button>
                     <button type="button" className="danger" onClick={() => handleDeletePost(message.id)}>Delete</button>
                   </div>
                 )}

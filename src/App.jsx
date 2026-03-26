@@ -7,6 +7,7 @@ import UserSettings from "./pages/UserSettings.jsx";
 import UserProfile from "./pages/UserProfile.jsx";
 import UsersDirectory from "./pages/UsersDirectory.jsx";
 import Docs from "./pages/Docs.jsx";
+import Moddit from "./pages/Moddit.jsx";
 import Navbar from "./Navbar.jsx";
 import {
   clearCachedProfile,
@@ -114,6 +115,10 @@ export default function App() {
             <Route path="/users" element={<UsersDirectory />} />
             <Route path="/users/:uid" element={<UserProfile />} />
             <Route path="/docs" element={<Docs />} />
+<<<<<<< codex/fix-logout-menu-issue-and-account-management-fv8xgl
+            <Route path="/moddit" element={<Moddit profile={profile} />} />
+=======
+>>>>>>> main
           </Routes>
         </main>
       </>

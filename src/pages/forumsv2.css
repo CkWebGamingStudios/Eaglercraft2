@@ -254,3 +254,25 @@
 .forums-v2-inline-actions button.danger {
   background: linear-gradient(135deg, #cc4558, #8c2230);
 }
+
+
+.moddit-status {
+  margin: 0;
+  color: #9ce8a7;
+}
+
+.moddit-image {
+  width: min(100%, 420px);
+  border-radius: 12px;
+  border: 1px solid rgba(128, 148, 192, 0.3);
+}
+
+.moddit-download-link {
+  display: inline-block;
+  text-decoration: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #53c876, #1f8e4a);
+  color: white;
+  padding: 0.48rem 0.85rem;
+  font-weight: 700;
+}

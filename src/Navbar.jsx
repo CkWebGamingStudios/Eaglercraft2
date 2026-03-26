@@ -12,7 +12,7 @@ export default function Navbar({ onSignOut }) {
         <Link to="/users">Users</Link>
         <Link to="/settings">Settings</Link>
         <Link to="/docs">Docs</Link>
-        <a href="#">Mods</a>
+        <Link to="/moddit">Moddit</Link>
         <a href="#">Clips</a>
       </nav>
       <button className="cta">Launch</button>
