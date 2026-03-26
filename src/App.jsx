@@ -34,19 +34,9 @@ export default function App() {
 
   useEffect(() => {
     import("./elge/splash.js");
-
-    let fallbackTimer = null;
-
-    if (isAuthChecked && profile) {
-      import("./elge/boot/boot.js");
-      fallbackTimer = setTimeout(() => {
-        const splash = document.getElementById("elge-splash");
-        if (splash) {
-          splash.style.opacity = "0";
-          splash.style.transition = "opacity 300ms ease";
-          setTimeout(() => splash.remove(), 300);
-        }
-      }, 8000);
+    const splash = document.getElementById("elge-splash");
+    if (splash) {
+      splash.remove();
     }
 
     if (!profile) {
@@ -55,12 +45,6 @@ export default function App() {
         elgeHub.remove();
       }
     }
-
-    return () => {
-      if (fallbackTimer) {
-        clearTimeout(fallbackTimer);
-      }
-    };
   }, [isAuthChecked, profile]);
 
   useEffect(() => {
@@ -135,14 +119,6 @@ export default function App() {
     <div id="app-root">
       {page}
 
-      <div id="elge-splash" style={{ display: isAuthChecked && profile ? "flex" : "none" }}>
-        <canvas id="elge-canvas" width="512" height="512" />
-        <div className="elge-text">
-          <div className="elge-title">ELGE</div>
-          <div className="elge-sub">Low-End Game Engine</div>
-          <div id="elge-status" className="elge-status">Initializing...</div>
-        </div>
-      </div>
     </div>
   );
 }
