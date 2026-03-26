@@ -25,3 +25,4 @@
 
 ## Build Safety
 - Build now runs a merge-conflict marker check before Vite compilation to prevent accidental deploy failures.
+
