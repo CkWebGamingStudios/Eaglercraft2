@@ -1,0 +1,76 @@
+.play-page {
+  min-height: calc(100vh - 90px);
+  padding: 1.2rem;
+  color: #f3f7ff;
+}
+
+.play-shell {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.play-header {
+  background: rgba(8, 14, 28, 0.9);
+  border: 1px solid rgba(145, 171, 237, 0.25);
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+}
+
+.play-header h1,
+.play-header p {
+  margin: 0;
+}
+
+.play-header p {
+  margin-top: 0.35rem;
+  color: #c9d8fb;
+}
+
+.play-canvas-wrap {
+  background: rgba(10, 16, 31, 0.95);
+  border: 1px solid rgba(121, 141, 191, 0.25);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.play-canvas {
+  display: block;
+  width: 100%;
+  height: min(70vh, 760px);
+  background: #000;
+}
+
+.play-console-wrap,
+.play-help {
+  background: rgba(13, 21, 37, 0.9);
+  border: 1px solid rgba(121, 141, 191, 0.25);
+  border-radius: 16px;
+  padding: 0.8rem 1rem;
+}
+
+.play-console-wrap label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.play-console-wrap input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(146, 166, 209, 0.35);
+  background: #0a1222;
+  color: #f2f6ff;
+  padding: 0.6rem 0.75rem;
+}
+
+.play-help h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.play-help ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
