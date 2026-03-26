@@ -12,6 +12,7 @@ export default function Moddit({ profile }) {
   const [image, setImage] = useState("");
   const [downloadLink, setDownloadLink] = useState("");
   const [status, setStatus] = useState("");
+  const [isUploadCollapsed, setIsUploadCollapsed] = useState(false);
 
   async function loadMods() {
     try {
@@ -84,25 +85,38 @@ export default function Moddit({ profile }) {
           <div className="forums-v2-count">{mods.length} mods</div>
         </header>
 
-        <form onSubmit={handlePublish} className="forums-v2-composer">
-          <label htmlFor="mod-title">Mod Title</label>
-          <input id="mod-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} />
+        <div className="forums-v2-composer-shell">
+          <button
+            type="button"
+            className="forums-v2-collapse-side"
+            aria-label={isUploadCollapsed ? "Expand mod upload bar" : "Minimize mod upload bar"}
+            onClick={() => setIsUploadCollapsed((prev) => !prev)}
+          >
+            {isUploadCollapsed ? "▼" : "▲"}
+          </button>
 
-          <label htmlFor="mod-game">Game</label>
-          <input id="mod-game" value={game} onChange={(event) => setGame(event.target.value)} maxLength={80} placeholder="e.g. Eaglercraft 1.8" />
+          {!isUploadCollapsed && (
+            <form onSubmit={handlePublish} className="forums-v2-composer">
+              <label htmlFor="mod-title">Mod Title</label>
+              <input id="mod-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} />
 
-          <label htmlFor="mod-description">Description</label>
-          <textarea id="mod-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} maxLength={800} />
+              <label htmlFor="mod-game">Game</label>
+              <input id="mod-game" value={game} onChange={(event) => setGame(event.target.value)} maxLength={80} placeholder="e.g. Eaglercraft 1.8" />
 
-          <label htmlFor="mod-image">Image URL (optional)</label>
-          <input id="mod-image" value={image} onChange={(event) => setImage(event.target.value)} />
+              <label htmlFor="mod-description">Description</label>
+              <textarea id="mod-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} maxLength={800} />
 
-          <label htmlFor="mod-download">Download Link (required)</label>
-          <input id="mod-download" value={downloadLink} onChange={(event) => setDownloadLink(event.target.value)} placeholder="https://..." required />
+              <label htmlFor="mod-image">Image URL (optional)</label>
+              <input id="mod-image" value={image} onChange={(event) => setImage(event.target.value)} />
 
-          {status && <p className="moddit-status">{status}</p>}
-          <button type="submit">Upload Mod</button>
-        </form>
+              <label htmlFor="mod-download">Download Link (required)</label>
+              <input id="mod-download" value={downloadLink} onChange={(event) => setDownloadLink(event.target.value)} placeholder="https://..." required />
+
+              {status && <p className="moddit-status">{status}</p>}
+              <button type="submit">Upload Mod</button>
+            </form>
+          )}
+        </div>
 
         <div className="forums-v2-list">
           {mods.length === 0 && <div className="forums-v2-empty">No mods uploaded yet.</div>}

@@ -11,6 +11,7 @@ export default function ForumsV2({ profile }) {
   const [editingPostId, setEditingPostId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [isComposerCollapsed, setIsComposerCollapsed] = useState(false);
 
   async function loadMessages() {
     try {
@@ -142,25 +143,38 @@ export default function ForumsV2({ profile }) {
           <div className="forums-v2-count">{messages.length} posts</div>
         </header>
 
-        <form onSubmit={handlePostMessage} className="forums-v2-composer">
-          <label htmlFor="forum-title">Post title</label>
-          <input
-            id="forum-title"
-            value={newTitle}
-            onChange={(event) => setNewTitle(event.target.value)}
-            placeholder="Add a short title"
-            maxLength={80}
-          />
-          <label htmlFor="forum-message">Post message</label>
-          <textarea
-            id="forum-message"
-            value={newMessage}
-            onChange={(event) => setNewMessage(event.target.value)}
-            placeholder="Share an update, ask a question, or post patch notes..."
-            rows={4}
-          />
-          <button type="submit">Post Message</button>
-        </form>
+        <div className="forums-v2-composer-shell">
+          <button
+            type="button"
+            className="forums-v2-collapse-side"
+            aria-label={isComposerCollapsed ? "Expand post upload bar" : "Minimize post upload bar"}
+            onClick={() => setIsComposerCollapsed((prev) => !prev)}
+          >
+            {isComposerCollapsed ? "▼" : "▲"}
+          </button>
+
+          {!isComposerCollapsed && (
+            <form onSubmit={handlePostMessage} className="forums-v2-composer">
+              <label htmlFor="forum-title">Post title</label>
+              <input
+                id="forum-title"
+                value={newTitle}
+                onChange={(event) => setNewTitle(event.target.value)}
+                placeholder="Add a short title"
+                maxLength={80}
+              />
+              <label htmlFor="forum-message">Post message</label>
+              <textarea
+                id="forum-message"
+                value={newMessage}
+                onChange={(event) => setNewMessage(event.target.value)}
+                placeholder="Share an update, ask a question, or post patch notes..."
+                rows={4}
+              />
+              <button type="submit">Post Message</button>
+            </form>
+          )}
+        </div>
 
         <div className="forums-v2-list">
           {messages.length === 0 && <div className="forums-v2-empty">No posts yet. Start the first discussion.</div>}

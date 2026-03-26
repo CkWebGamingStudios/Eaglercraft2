@@ -21,10 +21,8 @@
 - Required fields: title, description, target game, and download link.
 - Optional field: image URL.
 - Download link must be a valid `http` or `https` URL.
-<<<<<<< codex/fix-logout-menu-issue-and-account-management-y03d06
 
 
 ## Build Safety
 - Build now runs a merge-conflict marker check before Vite compilation to prevent accidental deploy failures.
-=======
->>>>>>> main
+

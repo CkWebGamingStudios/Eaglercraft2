@@ -116,7 +116,6 @@ export default function App() {
             <Route path="/users/:uid" element={<UserProfile />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="/moddit" element={<Moddit profile={profile} />} />
-            <Route path="/moddit" element={<Moddit profile={profile} />} />
           </Routes>
         </main>
       </>
