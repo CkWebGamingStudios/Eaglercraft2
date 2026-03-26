@@ -10,7 +10,7 @@ const navItems = [
   { key: "hopper", label: "GameHopper" },
   { key: "moddit", label: "Moddit" },
   { key: "clipper", label: "GameClipper" },
-  { key: "profile", label: "Profile" }
+  { key: "profile", label: "Profile Settings" }
 ];
 
 const spotlightCards = [
@@ -152,7 +152,7 @@ export default function Home({ identityState, profile, onSignOut }) {
         return (
           <div className="page-block">
             <h2>Player Profile</h2>
-            <p className="page-summary">Cloudflare identity-linked profile and service access details.</p>
+            <p className="page-summary">Your profile and service access details.</p>
             <div className="list-card">
               <h3>Identity Snapshot</h3>
               <ul>
@@ -173,6 +173,8 @@ export default function Home({ identityState, profile, onSignOut }) {
   const handleNavClick = (item) => {
     if (item.key === 'forums') {
       navigate('/forums');
+    } else if (item.key === "profile") {
+      navigate("/settings");
     } else {
       setActivePage(item.key);
     }
@@ -198,7 +200,7 @@ export default function Home({ identityState, profile, onSignOut }) {
         <main className="content">{pageContent}</main>
 
         <aside className="identity-card">
-          <h3>Cloudflare Access</h3>
+          <h3>Account Status</h3>
           <p>{identityState}</p>
           {profile && (
             <div className="mini-profile">
