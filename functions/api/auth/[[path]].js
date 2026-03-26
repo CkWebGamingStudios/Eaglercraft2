@@ -113,6 +113,41 @@ function redirectWithError(origin, message) {
   return Response.redirect(next.toString(), 302);
 }
 
+function normalizedEmail(email) {
+  if (!email || typeof email !== "string") {
+    return "";
+  }
+
+  return email.trim().toLowerCase();
+}
+
+function buildGitHubHeaders(accessToken) {
+  return {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Eaglercraft2-Auth"
+  };
+}
+
+async function parseProviderError(response, defaultMessage) {
+  const body = await response.text();
+  let errorMessage = defaultMessage;
+
+  if (body) {
+    try {
+      const parsed = JSON.parse(body);
+      const providerMessage = parsed?.error_description || parsed?.error || parsed?.message;
+      if (typeof providerMessage === "string" && providerMessage.trim()) {
+        errorMessage = `${defaultMessage}: ${providerMessage}`;
+      }
+    } catch {
+      errorMessage = `${defaultMessage}: ${body.slice(0, 200)}`;
+    }
+  }
+
+  return new Error(`${errorMessage} (HTTP ${response.status})`);
+}
+
 async function exchangeToken(provider, config, code) {
   if (provider === "google") {
     const response = await fetch(config.tokenUrl, {
@@ -143,7 +178,7 @@ async function exchangeToken(provider, config, code) {
       redirect_uri: config.redirectUri
     })
   });
-  if (!response.ok) throw new Error("GitHub token exchange failed");
+  if (!response.ok) throw await parseProviderError(response, "GitHub token exchange failed");
   return response.json();
 }
 
@@ -163,21 +198,15 @@ async function fetchProviderIdentity(provider, accessToken) {
   }
 
   const response = await fetch("https://api.github.com/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/vnd.github+json"
-    }
+    headers: buildGitHubHeaders(accessToken)
   });
-  if (!response.ok) throw new Error("GitHub user lookup failed");
+  if (!response.ok) throw await parseProviderError(response, "GitHub user lookup failed");
   const profile = await response.json();
 
   let email = profile.email || "";
   if (!email) {
     const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/vnd.github+json"
-      }
+      headers: buildGitHubHeaders(accessToken)
     });
     if (emailsResponse.ok) {
       const emails = await emailsResponse.json();
@@ -251,10 +280,24 @@ export async function onRequest(context) {
       const identity = await fetchProviderIdentity(provider, accessToken);
       const mapKey = `auth:map:${provider}:${identity.providerId}`;
       const mappedUid = await adapter.get(mapKey);
-      const uid = mappedUid || crypto.randomUUID();
+      const emailKey = identity.email ? `auth:email:${normalizedEmail(identity.email)}` : "";
+      const emailMappedUid = emailKey ? await adapter.get(emailKey) : null;
+      const existingUid = mappedUid || emailMappedUid;
+
+      if (existingUid) {
+        const existingProfileRaw = (await adapter.get(`auth:user:${existingUid}`)) || (await adapter.get(existingUid));
+        if (!existingProfileRaw) {
+          return redirectWithError(url.origin, "This account has been deleted and can no longer sign in.");
+        }
+      }
+
+      const uid = existingUid || crypto.randomUUID();
 
       if (!mappedUid) {
         await adapter.put(mapKey, uid);
+      }
+      if (emailKey) {
+        await adapter.put(emailKey, uid);
       }
 
       const profile = {
@@ -296,8 +339,11 @@ export async function onRequest(context) {
     if (!sessionRaw) return json(401, { success: false, errors: [{ message: "Session expired" }] });
 
     const session = JSON.parse(sessionRaw);
-    const userRaw = await adapter.get(`auth:user:${session.uid}`) || await adapter.get(session.uid);
-    if (!userRaw) return json(404, { success: false, errors: [{ message: "User not found" }] });
+    const userRaw = (await adapter.get(`auth:user:${session.uid}`)) || (await adapter.get(session.uid));
+    if (!userRaw) {
+      await adapter.del(`auth:session:${sessionToken}`);
+      return json(401, { success: false, errors: [{ message: "User no longer exists" }] }, { "Set-Cookie": clearSessionCookie(isSecure) });
+    }
 
     return json(200, { success: true, result: JSON.parse(userRaw) });
   }
