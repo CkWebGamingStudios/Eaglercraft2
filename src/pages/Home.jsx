@@ -10,7 +10,7 @@ const navItems = [
   { key: "hopper", label: "GameHopper" },
   { key: "moddit", label: "Moddit" },
   { key: "clipper", label: "GameClipper" },
-  { key: "profile", label: "Profile" }
+  { key: "profile", label: "Profile Settings" }
 ];
 
 const spotlightCards = [
@@ -173,6 +173,8 @@ export default function Home({ identityState, profile, onSignOut }) {
   const handleNavClick = (item) => {
     if (item.key === 'forums') {
       navigate('/forums');
+    } else if (item.key === "profile") {
+      navigate("/settings");
     } else {
       setActivePage(item.key);
     }
