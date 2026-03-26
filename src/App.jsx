@@ -115,7 +115,10 @@ export default function App() {
             <Route path="/users" element={<UsersDirectory />} />
             <Route path="/users/:uid" element={<UserProfile />} />
             <Route path="/docs" element={<Docs />} />
+<<<<<<< codex/fix-logout-menu-issue-and-account-management-fv8xgl
             <Route path="/moddit" element={<Moddit profile={profile} />} />
+=======
+>>>>>>> main
           </Routes>
         </main>
       </>
