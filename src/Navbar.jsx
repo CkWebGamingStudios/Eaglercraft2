@@ -15,7 +15,7 @@ export default function Navbar({ onSignOut }) {
         <Link to="/moddit">Moddit</Link>
         <a href="#">Clips</a>
       </nav>
-      <button className="cta">Launch</button>
+      <Link to="/play" className="cta">Launch</Link>
       <button className="cta ghost" type="button" onClick={onSignOut}>
         Sign Out
       </button>

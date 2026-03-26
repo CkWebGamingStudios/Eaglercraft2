@@ -40,7 +40,7 @@ function DashboardPage() {
             mods, and clips across one unified experience.
           </p>
           <div className="hero-actions">
-            <button>Start Session</button>
+            <button type="button" onClick={() => navigate("/play")}>Start Session</button>
             <button className="ghost">Explore Services</button>
           </div>
         </div>
