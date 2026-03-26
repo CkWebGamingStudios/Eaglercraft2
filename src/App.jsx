@@ -33,17 +33,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    import("./elge/splash.js");
-    const splash = document.getElementById("elge-splash");
-    if (splash) {
-      splash.remove();
-    }
-
-    if (!profile) {
-      const elgeHub = document.getElementById("elge-hub");
-      if (elgeHub) {
-        elgeHub.remove();
-      }
+    const elgeHub = document.getElementById("elge-hub");
+    if (elgeHub) {
+      elgeHub.remove();
     }
   }, [isAuthChecked, profile]);
 
