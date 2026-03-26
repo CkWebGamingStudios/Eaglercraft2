@@ -1,58 +1,68 @@
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const kv = env.ELGE_FORUMS;
   if (!kv) return json({ error: "KV not bound" }, 500);
 
   const postId = params.id;
-  const prefix = `post:${postId}:comment:`;
+  const posts = (await kv.get("posts", "json")) || [];
+  const postIndex = posts.findIndex((entry) => entry.id === postId);
+  const post = postIndex >= 0 ? posts[postIndex] : null;
+
+  if (!post) {
+    return json({ error: "Post not found" }, 404);
+  }
 
   if (request.method === "GET") {
-    const list = await kv.list({ prefix });
-    const comments = [];
-
-    for (const key of list.keys) {
-      const comment = await kv.get(key.name, "json");
-      if (comment) comments.push(comment);
-    }
-
-    comments.sort((a, b) => a.createdAt - b.createdAt);
-    return json(comments);
+    return json(Array.isArray(post.comments) ? post.comments : []);
   }
 
   if (request.method === "POST") {
-    const body = await request.json();
-    if (!body.content || !body.authorId)
-      return json({ error: "Missing fields" }, 400);
-
-    const commentId = crypto.randomUUID();
-    const comment = {
-      id: commentId,
-      postId,
-      content: body.content,
-      authorId: body.authorId,
-      authorName: body.authorName || "Anonymous",
-      createdAt: Date.now()
-    };
-
-    await kv.put(`${prefix}${commentId}`, JSON.stringify(comment));
-
-    // increment comment counter
-    const postKey = `post:${postId}`;
-    const post = await kv.get(postKey, "json");
-    if (post) {
-      post.commentsCount = (post.commentsCount || 0) + 1;
-      await kv.put(postKey, JSON.stringify(post));
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON" }, 400);
     }
 
+    const content = (body.content || body.comment || "").trim();
+    const authorId = body.authorId || "anonymous-user";
+    const authorName = body.authorName || "Anonymous";
+    const authorPicture = typeof body.authorPicture === "string" ? body.authorPicture : "";
+
+    if (!content) {
+      return json({ error: "Missing comment content" }, 400);
+    }
+
+    const comment = {
+      id: crypto.randomUUID(),
+      postId,
+      content,
+      text: content,
+      authorId,
+      authorName,
+      authorPicture,
+      createdAt: Date.now(),
+      timestamp: new Date().toISOString()
+    };
+
+    if (!Array.isArray(post.comments)) {
+      post.comments = [];
+    }
+
+    post.comments.push(comment);
+    post.commentsCount = post.comments.length;
+    posts[postIndex] = post;
+
+    await kv.put("posts", JSON.stringify(posts));
     return json(comment, 201);
   }
 
   return json({ error: "Method not allowed" }, 405);
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" }
-  });
 }
