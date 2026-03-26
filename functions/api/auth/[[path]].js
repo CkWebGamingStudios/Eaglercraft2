@@ -113,6 +113,21 @@ function redirectWithError(origin, message) {
   return Response.redirect(next.toString(), 302);
 }
 
+async function readSessionUser(adapter, request) {
+  const cookies = parseCookies(request);
+  const sessionToken = cookies[SESSION_COOKIE];
+  if (!sessionToken) return { error: "Not authenticated", status: 401 };
+
+  const sessionRaw = await adapter.get(`auth:session:${sessionToken}`);
+  if (!sessionRaw) return { error: "Session expired", status: 401 };
+
+  const session = JSON.parse(sessionRaw);
+  const userRaw = (await adapter.get(`auth:user:${session.uid}`)) || (await adapter.get(session.uid));
+  if (!userRaw) return { error: "User no longer exists", status: 401, sessionToken };
+
+  return { sessionToken, session, user: JSON.parse(userRaw) };
+}
+
 function normalizedEmail(email) {
   if (!email || typeof email !== "string") {
     return "";
@@ -307,6 +322,8 @@ export async function onRequest(context) {
         country: "",
         username: identity.username,
         profilePicture: identity.profilePicture,
+        providerId: identity.providerId,
+        bio: "",
         provider,
         updatedAt: new Date().toISOString()
       };
@@ -331,21 +348,79 @@ export async function onRequest(context) {
   }
 
   if (request.method === "GET" && action === "me") {
-    const cookies = parseCookies(request);
-    const sessionToken = cookies[SESSION_COOKIE];
-    if (!sessionToken) return json(401, { success: false, errors: [{ message: "Not authenticated" }] });
+    const auth = await readSessionUser(adapter, request);
+    if (auth.error) {
+      if (auth.sessionToken) {
+        await adapter.del(`auth:session:${auth.sessionToken}`);
+      }
+      const maybeCookie = auth.error === "User no longer exists" ? { "Set-Cookie": clearSessionCookie(isSecure) } : {};
+      return json(auth.status || 401, { success: false, errors: [{ message: auth.error }] }, maybeCookie);
+    }
+    return json(200, { success: true, result: auth.user });
+  }
 
-    const sessionRaw = await adapter.get(`auth:session:${sessionToken}`);
-    if (!sessionRaw) return json(401, { success: false, errors: [{ message: "Session expired" }] });
+  if (request.method === "GET" && action === "user" && tail[1]) {
+    const targetUid = tail[1];
+    const userRaw = (await adapter.get(`auth:user:${targetUid}`)) || (await adapter.get(targetUid));
+    if (!userRaw) return json(404, { success: false, errors: [{ message: "User not found" }] });
+    const user = JSON.parse(userRaw);
+    return json(200, {
+      success: true,
+      result: {
+        uid: user.uid,
+        username: user.username,
+        bio: user.bio || "",
+        profilePicture: user.profilePicture || "",
+        country: user.country || "",
+        updatedAt: user.updatedAt || ""
+      }
+    });
+  }
 
-    const session = JSON.parse(sessionRaw);
-    const userRaw = (await adapter.get(`auth:user:${session.uid}`)) || (await adapter.get(session.uid));
-    if (!userRaw) {
-      await adapter.del(`auth:session:${sessionToken}`);
-      return json(401, { success: false, errors: [{ message: "User no longer exists" }] }, { "Set-Cookie": clearSessionCookie(isSecure) });
+  if (request.method === "POST" && action === "profile") {
+    const auth = await readSessionUser(adapter, request);
+    if (auth.error) return json(auth.status, { success: false, errors: [{ message: auth.error }] });
+
+    let patch;
+    try {
+      patch = await request.json();
+    } catch {
+      return json(400, { success: false, errors: [{ message: "Invalid JSON body" }] });
     }
 
-    return json(200, { success: true, result: JSON.parse(userRaw) });
+    const nextProfile = {
+      ...auth.user,
+      username: typeof patch.username === "string" ? patch.username.trim().slice(0, 40) || auth.user.username : auth.user.username,
+      profilePicture: typeof patch.profilePicture === "string" ? patch.profilePicture.trim().slice(0, 500) : auth.user.profilePicture,
+      bio: typeof patch.bio === "string" ? patch.bio.trim().slice(0, 280) : (auth.user.bio || ""),
+      country: typeof patch.country === "string" ? patch.country.trim().slice(0, 80) : (auth.user.country || ""),
+      updatedAt: new Date().toISOString()
+    };
+
+    await adapter.put(`auth:user:${auth.user.uid}`, JSON.stringify(nextProfile));
+    await adapter.put(auth.user.uid, JSON.stringify(nextProfile));
+    return json(200, { success: true, result: nextProfile });
+  }
+
+  if (request.method === "DELETE" && action === "account") {
+    const auth = await readSessionUser(adapter, request);
+    if (auth.error) return json(auth.status, { success: false, errors: [{ message: auth.error }] });
+
+    if (auth.sessionToken) {
+      await adapter.del(`auth:session:${auth.sessionToken}`);
+    }
+    await adapter.del(`auth:user:${auth.user.uid}`);
+    await adapter.del(auth.user.uid);
+
+    if (auth.user.provider && auth.user.providerId) {
+      await adapter.del(`auth:map:${auth.user.provider}:${auth.user.providerId}`);
+    }
+    const email = normalizedEmail(auth.user.email || "");
+    if (email) {
+      await adapter.del(`auth:email:${email}`);
+    }
+
+    return json(200, { success: true }, { "Set-Cookie": clearSessionCookie(isSecure) });
   }
 
   if (request.method === "POST" && action === "logout") {

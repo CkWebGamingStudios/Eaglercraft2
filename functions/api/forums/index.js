@@ -26,6 +26,7 @@ export async function onRequest(context) {
 
     const authorId = body.authorId || "anonymous-user";
     const authorName = body.authorName || "Anonymous";
+    const authorPicture = typeof body.authorPicture === "string" ? body.authorPicture : "";
 
     const legacyMessage = typeof body.message === "string" ? body.message.trim() : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -53,6 +54,7 @@ export async function onRequest(context) {
       links: Array.isArray(body.links) ? body.links : [],
       authorId,
       authorName,
+      authorPicture,
       upvotes: 0,
       comments: [],
       commentsCount: 0,

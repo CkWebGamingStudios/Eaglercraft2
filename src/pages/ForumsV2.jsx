@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import "./forumsv2.css";
 
 export default function ForumsV2({ profile }) {
@@ -31,7 +32,12 @@ export default function ForumsV2({ profile }) {
       const response = await fetch("/api/forums", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: `${trimmed}\n\n— ${profile?.username || "Anonymous"}` })
+        body: JSON.stringify({
+          message: trimmed,
+          authorId: profile?.uid || "anonymous-user",
+          authorName: profile?.username || "Anonymous",
+          authorPicture: profile?.profilePicture || ""
+        })
       });
 
       if (!response.ok) return;
@@ -51,7 +57,12 @@ export default function ForumsV2({ profile }) {
       const response = await fetch(`/api/forums/${messageId}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comment: `${trimmed} — ${profile?.username || "Anonymous"}` })
+        body: JSON.stringify({
+          comment: trimmed,
+          authorId: profile?.uid || "anonymous-user",
+          authorName: profile?.username || "Anonymous",
+          authorPicture: profile?.profilePicture || ""
+        })
       });
 
       if (!response.ok) return;
@@ -95,7 +106,19 @@ export default function ForumsV2({ profile }) {
 
             return (
               <article key={message.id} className="forums-v2-card">
-                <p className="forums-v2-message">{message.message}</p>
+                <div className="forums-v2-author">
+                  <Link to={`/users/${message.authorId || "anonymous-user"}`}>
+                    <img
+                      src={message.authorPicture || "https://api.dicebear.com/9.x/bottts/svg?seed=ForumUser"}
+                      alt={message.authorName || "User"}
+                    />
+                  </Link>
+                  <div>
+                    <p className="forums-v2-author-name">{message.authorName || "Anonymous"}</p>
+                    <p className="forums-v2-author-meta">{message.createdAt ? new Date(message.createdAt).toLocaleString() : ""}</p>
+                  </div>
+                </div>
+                <p className="forums-v2-message">{message.content || message.message || message.title}</p>
 
                 <button
                   type="button"
@@ -111,7 +134,16 @@ export default function ForumsV2({ profile }) {
                       {comments.length === 0 && <p className="forums-v2-comment-empty">No comments yet.</p>}
                       {comments.map((comment, index) => (
                         <div key={`${message.id}-comment-${index}`} className="forums-v2-comment-item">
-                          <p>{comment.text}</p>
+                          <div className="forums-v2-comment-author">
+                            <Link to={`/users/${comment.authorId || "anonymous-user"}`}>
+                              <img
+                                src={comment.authorPicture || "https://api.dicebear.com/9.x/bottts/svg?seed=CommentUser"}
+                                alt={comment.authorName || "User"}
+                              />
+                            </Link>
+                            <strong>{comment.authorName || "Anonymous"}</strong>
+                          </div>
+                          <p>{comment.text || comment.content}</p>
                           {comment.timestamp && <time>{new Date(comment.timestamp).toLocaleString()}</time>}
                         </div>
                       ))}

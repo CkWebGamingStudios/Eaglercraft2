@@ -109,6 +109,34 @@
   line-height: 1.5;
 }
 
+.forums-v2-author {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.forums-v2-author img {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.forums-v2-author-name,
+.forums-v2-author-meta {
+  margin: 0;
+}
+
+.forums-v2-author-name {
+  font-weight: 700;
+}
+
+.forums-v2-author-meta {
+  font-size: 0.8rem;
+  color: #aebadd;
+}
+
 .forums-v2-toggle {
   width: fit-content;
   border: 1px solid rgba(140, 160, 205, 0.35);
@@ -140,6 +168,20 @@
 
 .forums-v2-comment-item p {
   margin: 0;
+}
+
+.forums-v2-comment-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.forums-v2-comment-author img {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
 }
 
 .forums-v2-comment-item time {

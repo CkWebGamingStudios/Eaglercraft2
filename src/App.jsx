@@ -3,6 +3,8 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Forums from "./pages/ForumsV2.jsx";
+import UserSettings from "./pages/UserSettings.jsx";
+import UserProfile from "./pages/UserProfile.jsx";
 import Navbar from "./Navbar.jsx";
 import {
   clearCachedProfile,
@@ -88,6 +90,11 @@ export default function App() {
     }
   }
 
+  function handleProfileUpdated(nextProfile) {
+    setProfile(nextProfile);
+    setIdentityState(`Signed in as ${nextProfile.username || nextProfile.email || nextProfile.uid}`);
+  }
+
   let page;
   if (!isAuthChecked) {
     page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
@@ -101,6 +108,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
             <Route path="/forums" element={<Forums profile={profile} />} />
+            <Route path="/settings" element={<UserSettings profile={profile} onProfileUpdated={handleProfileUpdated} />} />
+            <Route path="/users/:uid" element={<UserProfile />} />
           </Routes>
         </main>
       </>

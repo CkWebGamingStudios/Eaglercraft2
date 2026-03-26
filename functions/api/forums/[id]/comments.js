@@ -34,6 +34,7 @@ export async function onRequest(context) {
     const content = (body.content || body.comment || "").trim();
     const authorId = body.authorId || "anonymous-user";
     const authorName = body.authorName || "Anonymous";
+    const authorPicture = typeof body.authorPicture === "string" ? body.authorPicture : "";
 
     if (!content) {
       return json({ error: "Missing comment content" }, 400);
@@ -46,6 +47,7 @@ export async function onRequest(context) {
       text: content,
       authorId,
       authorName,
+      authorPicture,
       createdAt: Date.now(),
       timestamp: new Date().toISOString()
     };
