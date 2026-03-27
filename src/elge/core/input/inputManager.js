@@ -1,4 +1,7 @@
 export function initInputSystem() {
-    console.log("[ELGE] Input system initialized");
-    window.addEventListener("keydown", () => {});
+    console.log("[ELGE] Input initialized");
+
+    window.addEventListener("keydown", (e) => {
+        // extend later
+    });
 }
