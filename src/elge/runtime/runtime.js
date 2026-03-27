@@ -1,33 +1,57 @@
-import { removeSplash } from "../ui/loader.js";
-import { initInputSystem } from "../core/input/InputManager.ts";
+import { initInputSystem } from "../core/input/inputManager.js";
 import { initPointer } from "../core/input/pointer.js";
-import { startTickLoop } from "../core/tickLoop.js";
-import { initConsole } from "../console/consoleUI.js";
-import { registerDefaultCommands } from "../console/commands.js";
-import { mountHub } from "../hub/hub.js";
+import { initConsole } from "../core/console/console.js";
+import { registerDefaultCommands } from "../core/console/commands.js";
+import { mountHub, unmountHub } from "../ui/hub/hub.js";
+import { startTickLoop, stopTickLoop } from "../core/loop/tick.js";
 
-export function startRuntime({ context, capabilities }) {
-    console.log("[ELGE] Runtime starting", { context, capabilities });
+export function createRuntime() {
+    let running = false;
+    let mounted = false;
+    let root = null;
 
-    // Remove splash screen cleanly
-    removeSplash();
+    function mount(selector = "body") {
+        if (mounted) return;
+        root = document.querySelector(selector) || document.body;
+        mounted = true;
+    }
 
-    // Initialize engine subsystems
-    initInputSystem();
-    initPointer();
+    function start() {
+        if (running) return;
 
-    // Console & commands
-    initConsole();
-    registerDefaultCommands();
+        initInputSystem();
+        initPointer();
+        initConsole();
+        registerDefaultCommands();
 
-    // Mount UI shell (navbar + sidebar)
-    mountHub();
+        mountHub(root);
 
-    // Main engine loop
-    startTickLoop(() => {
-        // Engine update tick
-        // Renderer, world, net sync will hook here
-    });
+        startTickLoop(() => {
+            // future update/render
+        });
 
-    console.log("[ELGE] Runtime ready");
+        running = true;
+    }
+
+    function show() {
+        if (!mounted) mount();
+        if (!running) start();
+        root.style.display = "block";
+    }
+
+    function hide() {
+        if (root) root.style.display = "none";
+    }
+
+    function destroy() {
+        if (!running) return;
+
+        stopTickLoop();
+        unmountHub();
+
+        running = false;
+        mounted = false;
+    }
+
+    return { mount, start, show, hide, destroy };
 }
