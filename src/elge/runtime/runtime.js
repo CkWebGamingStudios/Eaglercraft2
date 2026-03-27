@@ -1,6 +1,6 @@
 import { initInputSystem } from "../core/input/inputManager.js";
 import { initPointer } from "../core/input/pointer.js";
-import { initConsole } from "../core/console/console.js";
+import { initConsole } from "../console/console.js";
 import { registerDefaultCommands } from "../console/commands.js";
 import { mountHub, unmountHub } from "../ui/hub/hub.js";
 import { startTickLoop, stopTickLoop } from "../core/loop/tick.js";
