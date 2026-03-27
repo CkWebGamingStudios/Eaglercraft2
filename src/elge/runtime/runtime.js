@@ -5,7 +5,7 @@ import { registerDefaultCommands } from "../console/commands.js";
 import { mountHub, unmountHub } from "../ui/hub/hub.js";
 import { startTickLoop, stopTickLoop } from "../core/loop/tick.js";
 
-export function createRuntime() {
+export function startRuntime() {
     let running = false;
     let mounted = false;
     let root = null;
@@ -14,9 +14,9 @@ export function createRuntime() {
         if (mounted) return;
         root = document.querySelector(selector) || document.body;
         mounted = true;
-    }
+    } // Fixed missing brace
 
-export function startRuntime() {
+    function start() { // Removed 'export' and renamed to match return object
         if (running) return;
 
         initInputSystem();
@@ -36,7 +36,7 @@ export function startRuntime() {
     function show() {
         if (!mounted) mount();
         if (!running) start();
-        root.style.display = "block";
+        if (root) root.style.display = "block";
     }
 
     function hide() {
