@@ -16,7 +16,7 @@ export function createRuntime() {
         mounted = true;
     }
 
-    function start() {
+export function startRuntime() {
         if (running) return;
 
         initInputSystem();
