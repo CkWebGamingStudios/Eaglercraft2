@@ -1,84 +1,54 @@
-'use strict';
+// Cloudflare Workers code for authentication handling
 
-const express = require('express');
-const passport = require('passport');
-const session = require('express-session');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const GitHubStrategy = require('passport-github').Strategy;
-const User = require('../../models/User'); // Adjust the path as needed
+export function onRequest(req) {
+    // Session management and expiration checking
+    const SESSION_EXPIRY = 60 * 60 * 1000; // 1 hour
+    const sessions = new Map();
 
-const router = express.Router();
-
-// Passport configuration
-passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
-
-passport.deserializeUser((id, done) => {
-    User.findById(id, (err, user) => {
-        done(err, user);
-    });
-});
-
-passport.use(new GoogleStrategy({
-    clientID: 'YOUR_GOOGLE_CLIENT_ID',
-    clientSecret: 'YOUR_GOOGLE_CLIENT_SECRET',
-    callbackURL: '/auth/google/callback'
-}, (accessToken, refreshToken, profile, done) => {
-    User.findOne({ googleId: profile.id }).then((existingUser) => {
-        if (existingUser) {
-            done(null, existingUser);
-        } else {
-            new User({
-                googleId: profile.id,
-                username: profile.displayName,
-                thumbnail: profile._json.picture
-            }).save().then((user) => done(null, user));
+    const checkSession = (sessionId) => {
+        const session = sessions.get(sessionId);
+        if (session && (Date.now() - session.timestamp < SESSION_EXPIRY)) {
+            return session.user;
         }
-    });
-}));
+        return null;
+    };
 
-passport.use(new GitHubStrategy({
-    clientID: 'YOUR_GITHUB_CLIENT_ID',
-    clientSecret: 'YOUR_GITHUB_CLIENT_SECRET',
-    callbackURL: '/auth/github/callback'
-}, (accessToken, refreshToken, profile, done) => {
-    User.findOne({ githubId: profile.id }).then((existingUser) => {
-        if (existingUser) {
-            done(null, existingUser);
-        } else {
-            new User({
-                githubId: profile.id,
-                username: profile.username,
-                thumbnail: profile._json.avatar_url
-            }).save().then((user) => done(null, user));
-        }
-    });
-}));
-
-// Session expiration middleware
-const sessionExpireMiddleware = (req, res, next) => {
-    if (req.isAuthenticated() && req.session) {
-        const now = new Date();
-        const sessionCreatedAt = req.session.createdAt;
-        const sessionExpirationTime = 24 * 60 * 60 * 1000; // 24 hours
-        if (now - sessionCreatedAt > sessionExpirationTime) {
-            req.logout();
-            return res.status(401).send('Session expired.');
-        }
+    // Handle login request
+    if (req.method === 'POST' && req.url.endsWith('/login')) {
+        // Perform OAuth login (Google or GitHub)
+        // ...[OAuth code here]...
+        const sessionId = 'generatedSessionId'; // Replace with actual session ID
+        sessions.set(sessionId, { user: userDetails, timestamp: Date.now() });
+        return new Response('Login successful', { headers: { 'Set-Cookie': `sessionId=${sessionId}; HttpOnly; Path=/;` }});
     }
-    next();
-};
 
-router.use(sessionExpireMiddleware);
-
-// Users endpoint
-router.get('/users', (req, res) => {
-    if (req.isAuthenticated()) {
-        res.send(req.user);
-    } else {
-        res.status(401).send('Unauthorized');
+    // Handle callback for OAuth
+    if (req.method === 'GET' && req.url.includes('/callback')) {
+        // Handle OAuth callback
+        // ...[Callback code here]...
+        return new Response('Callback handling complete.');
     }
-});
 
-module.exports = router;
+    // Middleware for checking user session
+    const sessionId = req.cookies.sessionId;
+    const user = checkSession(sessionId);
+    if (!user) {
+        return new Response('Unauthorized', { status: 401 });
+    }
+
+    // Handle '/me' endpoint
+    if (req.method === 'GET' && req.url.endsWith('/me')) {
+        return new Response(JSON.stringify(user));
+    }
+
+    // Handle '/users' endpoint
+    if (req.method === 'GET' && req.url.endsWith('/users')) {
+        // Return user list or user details...
+        return new Response(JSON.stringify([user]));
+    }
+
+    // Handle various endpoints (profile, account, logout)
+    // ...[Other handlers here]...
+    
+    return new Response('Not found', { status: 404 });
+}
