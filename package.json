@@ -27,7 +27,9 @@
     "dev:server": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:conflicts": "! rg -n '^(<<<<<<<|=======|>>>>>>>)' src functions docs",
+    "prebuild": "npm run check:conflicts"
   },
   "dependencies": {
     "axios": "^1.7.9",

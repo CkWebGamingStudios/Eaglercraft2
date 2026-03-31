@@ -9,11 +9,14 @@ export default function Navbar({ onSignOut }) {
         <Link to="/">Home</Link>
         <Link to="/store">Store</Link>
         <Link to="/forums">Forums</Link>
-        <a href="#">Docs</a>
-        <a href="#">Mods</a>
+        <Link to="/users">Users</Link>
+        <Link to="/settings">Settings</Link>
+        <Link to="/docs">Docs</Link>
+        <Link to="/moddit">Moddit</Link>
         <a href="#">Clips</a>
+        <Link to="/admin">Admin</Link>
       </nav>
-      <button className="cta">Launch</button>
+      <Link to="/play" className="cta">Launch</Link>
       <button className="cta ghost" type="button" onClick={onSignOut}>
         Sign Out
       </button>
