@@ -47,6 +47,10 @@ function modsKv(env) {
   return env.ELGE_MODDIT || env.ELGE_FORUMS;
 }
 
+function errorLogsKv(env) {
+  return env.ERROR_LOGS || env.ELGE_USERS_KV;
+}
+
 async function listAll(kv, prefix) {
   if (!kv?.list) return [];
   const out = [];
@@ -216,6 +220,160 @@ export async function onRequest(context) {
     if (next.length === mods.length) return json({ error: "Mod not found" }, 404);
     await kv.put("moddit:mods", JSON.stringify(next));
     return json({ success: true });
+  }
+
+  // ============================================
+  // LOG EXPLORER ROUTES
+  // ============================================
+
+  // GET /api/admin/logs - List all error logs (paginated)
+  if (request.method === "GET" && action === "logs") {
+    const kv = errorLogsKv(env);
+    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get("limit")) || 50;
+    const cursor = url.searchParams.get("cursor") || undefined;
+
+    // List error index keys (sorted by timestamp)
+    const indexList = await kv.list({ prefix: "error:index:", limit, cursor });
+    
+    const logs = [];
+    for (const key of indexList.keys) {
+      const rayId = await kv.get(key.name);
+      if (!rayId) continue;
+      
+      const errorData = await kv.get(`error:${rayId}`);
+      if (!errorData) continue;
+      
+      try {
+        logs.push(JSON.parse(errorData));
+      } catch {
+        // ignore malformed entries
+      }
+    }
+
+    // Sort by timestamp descending (newest first)
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return json({
+      success: true,
+      result: {
+        logs,
+        hasMore: !indexList.list_complete,
+        cursor: indexList.cursor
+      }
+    });
+  }
+
+  // GET /api/admin/logs/:rayId - Get specific error by Ray ID
+  if (request.method === "GET" && action === "logs" && tail[1]) {
+    const kv = errorLogsKv(env);
+    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const rayId = tail[1];
+    const errorData = await kv.get(`error:${rayId}`);
+    
+    if (!errorData) {
+      return json({ error: "Log not found" }, 404);
+    }
+
+    try {
+      const log = JSON.parse(errorData);
+      return json({ success: true, result: log });
+    } catch {
+      return json({ error: "Invalid log data" }, 500);
+    }
+  }
+
+  // DELETE /api/admin/logs/:rayId - Delete specific error log
+  if (request.method === "DELETE" && action === "logs" && tail[1]) {
+    const kv = errorLogsKv(env);
+    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const rayId = tail[1];
+    
+    // Get the log to find its timestamp for index cleanup
+    const errorData = await kv.get(`error:${rayId}`);
+    if (errorData) {
+      try {
+        const log = JSON.parse(errorData);
+        const indexKey = `error:index:${log.timestamp}:${rayId}`;
+        await kv.delete(indexKey);
+      } catch {
+        // ignore
+      }
+    }
+    
+    await kv.delete(`error:${rayId}`);
+    return json({ success: true });
+  }
+
+  // DELETE /api/admin/logs - Clear all error logs
+  if (request.method === "DELETE" && action === "logs") {
+    const kv = errorLogsKv(env);
+    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    // Delete all error logs and index entries
+    const allKeys = await listAll(kv, "error:");
+    let deleted = 0;
+    
+    for (const key of allKeys) {
+      await kv.delete(key.name);
+      deleted++;
+    }
+
+    return json({ success: true, result: { deleted } });
+  }
+
+  // GET /api/admin/logs/stats - Get error statistics
+  if (request.method === "GET" && action === "logs" && tail[1] === "stats") {
+    const kv = errorLogsKv(env);
+    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const allKeys = await listAll(kv, "error:");
+    const errorKeys = allKeys.filter(k => k.name.startsWith("error:") && !k.name.includes(":index:"));
+    
+    const stats = {
+      totalErrors: errorKeys.length,
+      errorsByType: {},
+      errorsByPath: {},
+      recentErrors: []
+    };
+
+    // Sample recent errors for stats
+    const sampleSize = Math.min(100, errorKeys.length);
+    for (let i = 0; i < sampleSize; i++) {
+      const raw = await kv.get(errorKeys[i].name);
+      if (!raw) continue;
+      
+      try {
+        const log = JSON.parse(raw);
+        
+        // Count by type
+        const type = log.type || "error";
+        stats.errorsByType[type] = (stats.errorsByType[type] || 0) + 1;
+        
+        // Count by path
+        stats.errorsByPath[log.path] = (stats.errorsByPath[log.path] || 0) + 1;
+        
+        // Collect recent errors
+        if (i < 10) {
+          stats.recentErrors.push({
+            rayId: log.rayId,
+            message: log.message,
+            path: log.path,
+            timestamp: log.timestamp
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    stats.recentErrors.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return json({ success: true, result: stats });
   }
 
   return json({ error: "Admin route not found" }, 404);
