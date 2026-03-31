@@ -72,7 +72,10 @@ async function requireAdmin(request, env) {
 export async function onRequest(context) {
   const { request, env, params } = context;
   const isSecure = new URL(request.url).protocol === "https:";
-  const tail = (params.path || "").split("/").filter(Boolean);
+  const rawPath = params?.path;
+  const tail = Array.isArray(rawPath)
+    ? rawPath.filter(Boolean)
+    : (typeof rawPath === "string" ? rawPath.split("/").filter(Boolean) : []);
   const action = tail[0] || "";
 
   if (request.method === "POST" && action === "login") {
