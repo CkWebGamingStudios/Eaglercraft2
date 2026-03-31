@@ -13,6 +13,7 @@ function ensurePointerCommands() {
 }
 
 export function initPointer() {
+  console.log("[ELGE] Pointer initialized");
   ensurePointerCommands();
 
   window.addEventListener("mousemove", (e) => {
