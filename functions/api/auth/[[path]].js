@@ -1,5 +1,6 @@
 const DEFAULT_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
 const SESSION_COOKIE = "eagler_session";
+const SESSION_EXPIRY_MS = 60 * 60 * 24 * 30 * 1000; // 30 days in milliseconds
 
 function json(status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
