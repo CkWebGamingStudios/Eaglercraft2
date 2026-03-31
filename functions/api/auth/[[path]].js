@@ -293,28 +293,18 @@ export async function onRequest(context) {
   const action = tail[0] || "";
   const provider = tail[1] || "";
 
-  // FIXED: /users endpoint - NOW CORRECTLY CHECKS SESSION EXPIRATION
   if (request.method === "GET" && action === "users") {
     const userKeys = await listKeysByPrefix(adapter, "auth:user:");
     const sessionKeys = await listKeysByPrefix(adapter, "auth:session:");
 
     const onlineUidSet = new Set();
-    const now = Date.now();
-
-    // CRITICAL FIX: Validate each session's expiration time
     for (const keyEntry of sessionKeys) {
       const sessionRaw = await adapter.get(keyEntry.name);
       if (!sessionRaw) continue;
       try {
         const parsed = JSON.parse(sessionRaw);
-        const sessionAge = now - (parsed?.createdAt || 0);
-        
-        // Only mark user online if session is NOT expired
-        if (parsed?.uid && sessionAge < SESSION_EXPIRY_MS) {
+        if (parsed?.uid) {
           onlineUidSet.add(parsed.uid);
-        } else if (sessionAge >= SESSION_EXPIRY_MS) {
-          // Clean up expired sessions
-          await adapter.del(keyEntry.name);
         }
       } catch {
         // ignore malformed session entries
@@ -345,6 +335,7 @@ export async function onRequest(context) {
       if (a.isOnline !== b.isOnline) {
         return a.isOnline ? -1 : 1;
       }
+
       return String(a.username).localeCompare(String(b.username));
     });
 

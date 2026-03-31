@@ -9,6 +9,7 @@ import UsersDirectory from "./pages/UsersDirectory.jsx";
 import Docs from "./pages/Docs.jsx";
 import Moddit from "./pages/Moddit.jsx";
 import Play from "./pages/Play.jsx";
+import AdminPanel from "./pages/AdminPanel.jsx";
 import Navbar from "./Navbar.jsx";
 import {
   clearCachedProfile,
@@ -118,6 +119,7 @@ export default function App() {
             <Route path="/docs" element={<Docs />} />
             <Route path="/moddit" element={<Moddit profile={profile} />} />
             <Route path="/play" element={<Play />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </main>
       </>
