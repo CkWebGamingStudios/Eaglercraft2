@@ -112,6 +112,34 @@ export async function logoutAuthSession() {
   await fetchJsonWithGuards(`${AUTH_API_BASE}/logout`, { method: "POST" });
 }
 
+export async function updateAuthProfile(profilePatch) {
+  const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profilePatch)
+  });
+  return payload?.result ?? null;
+}
+
+export async function deleteAuthAccount() {
+  return fetchJsonWithGuards(`${AUTH_API_BASE}/account`, { method: "DELETE" });
+}
+
+
+export async function fetchAllUsers() {
+  const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/users`, {
+    method: "GET"
+  });
+  return payload?.result ?? [];
+}
+
+export async function fetchPublicUserProfile(uid) {
+  const payload = await fetchJsonWithGuards(`${AUTH_API_BASE}/user/${encodeURIComponent(uid)}`, {
+    method: "GET"
+  });
+  return payload?.result ?? null;
+}
+
 export function buildUserProfile(identityResult) {
   const uid = identityResult?.uid || "";
   const identity = identityResult?.identity || {};
