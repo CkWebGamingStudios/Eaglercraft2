@@ -28,20 +28,26 @@ export default function AdminPanel() {
   const [logStats, setLogStats] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [logSearch, setLogSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   async function loadAll() {
-    const [u, p, m, l, s] = await Promise.all([
-      api("/users"),
-      api("/posts"),
-      api("/mods"),
-      api("/logs?limit=100").catch(() => ({ result: { logs: [] } })),
-      api("/logs/stats").catch(() => ({ result: null }))
-    ]);
-    setUsers(Array.isArray(u.result) ? u.result : []);
-    setPosts(Array.isArray(p.result) ? p.result : []);
-    setMods(Array.isArray(m.result) ? m.result : []);
-    setLogs(Array.isArray(l.result?.logs) ? l.result.logs : []);
-    setLogStats(s.result);
+    setIsLoading(true);
+    try {
+      const [u, p, m, l, s] = await Promise.all([
+        api("/users"),
+        api("/posts"),
+        api("/mods"),
+        api("/logs?limit=100").catch(() => ({ result: { logs: [] } })),
+        api("/logs/stats").catch(() => ({ result: null }))
+      ]);
+      setUsers(Array.isArray(u.result) ? u.result : []);
+      setPosts(Array.isArray(p.result) ? p.result : []);
+      setMods(Array.isArray(m.result) ? m.result : []);
+      setLogs(Array.isArray(l.result?.logs) ? l.result.logs : []);
+      setLogStats(s.result);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -56,6 +62,7 @@ export default function AdminPanel() {
   async function handleLogin(event) {
     event.preventDefault();
     setStatus("");
+    setIsLoading(true);
     try {
       await api("/login", { method: "POST", body: JSON.stringify({ password }) });
       setPassword("");
@@ -63,6 +70,8 @@ export default function AdminPanel() {
       await loadAll();
     } catch (error) {
       setStatus(error.message || "Login failed");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -102,9 +111,16 @@ export default function AdminPanel() {
   }
 
   async function clearAllLogs() {
-    if (!window.confirm("Delete ALL error logs? This cannot be undone!")) return;
-    await api("/logs", { method: "DELETE" });
-    await loadAll();
+    if (!window.confirm("⚠️ Delete ALL error logs? This cannot be undone!")) return;
+    const confirmAgain = window.confirm("Are you absolutely sure? Type 'DELETE' to confirm.");
+    if (!confirmAgain) return;
+    
+    try {
+      await api("/logs", { method: "DELETE" });
+      await loadAll();
+    } catch (error) {
+      alert("Failed to clear logs: " + error.message);
+    }
   }
 
   function viewLogDetails(log) {
@@ -117,6 +133,11 @@ export default function AdminPanel() {
 
   function formatDate(timestamp) {
     return new Date(timestamp).toLocaleString();
+  }
+
+  function formatDuration(ms) {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
   }
 
   // Filter logs based on search
@@ -134,19 +155,29 @@ export default function AdminPanel() {
     return (
       <section className="admin-page">
         <div className="admin-shell">
-          <h1>Admin Panel</h1>
-          <p>Sign in with ADMIN_PASS.</p>
+          <div className="admin-head-row">
+            <h1>🔐 Eaglercraft2 Admin</h1>
+          </div>
           <form onSubmit={handleLogin} className="admin-login-form">
+            <h2 style={{ color: 'var(--accent-teal)', marginBottom: '1rem', textAlign: 'center' }}>
+              Administrator Access
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '1.5rem' }}>
+              Enter your admin credentials to continue
+            </p>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Admin password"
               required
+              autoFocus
             />
-            <button type="submit">Login</button>
+            <button type="submit" disabled={isLoading}>
+              {isLoading ? "Authenticating..." : "Login"}
+            </button>
           </form>
-          {status && <p className="admin-status">{status}</p>}
+          {status && <p className="admin-status">⚠️ {status}</p>}
         </div>
       </section>
     );
@@ -156,23 +187,30 @@ export default function AdminPanel() {
     <section className="admin-page">
       <div className="admin-shell">
         <div className="admin-head-row">
-          <h1>Admin Panel</h1>
-          <button type="button" onClick={handleLogout}>Logout</button>
+          <h1>⚙️ Admin Control Panel</h1>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button type="button" onClick={loadAll} disabled={isLoading} title="Refresh all data">
+              {isLoading ? "⏳ Loading..." : "🔄 Refresh"}
+            </button>
+            <button type="button" onClick={handleLogout}>
+              🚪 Logout
+            </button>
+          </div>
         </div>
 
         {/* Stats Bar */}
         {logStats && (
           <div className="admin-stats-bar">
             <div className="stat-item">
-              <span className="stat-label">Total Errors</span>
+              <span className="stat-label">📊 Total Logs</span>
               <span className="stat-value">{logStats.totalErrors || 0}</span>
             </div>
             <div className="stat-item stat-error">
-              <span className="stat-label">Errors</span>
+              <span className="stat-label">🚨 Critical Errors</span>
               <span className="stat-value">{logStats.errorsByType?.error || 0}</span>
             </div>
             <div className="stat-item stat-slow">
-              <span className="stat-label">Slow Requests</span>
+              <span className="stat-label">⏱️ Slow Requests</span>
               <span className="stat-value">{logStats.errorsByType?.slow_request || 0}</span>
             </div>
           </div>
@@ -180,84 +218,112 @@ export default function AdminPanel() {
 
         <div className="admin-grid">
           <section className="admin-card">
-            <h2>Users ({users.length})</h2>
+            <h2>👥 Users ({users.length})</h2>
             <div className="admin-list">
-              {users.map((user) => (
-                <div key={user.uid} className="admin-item">
-                  <div>
-                    <strong>{user.username || user.uid}</strong>
-                    <p>{user.email || "No email"}</p>
+              {users.length === 0 ? (
+                <div className="admin-empty">No users found</div>
+              ) : (
+                users.map((user) => (
+                  <div key={user.uid} className="admin-item">
+                    <div>
+                      <strong>{user.username || user.uid}</strong>
+                      <p>📧 {user.email || "No email"}</p>
+                      <p style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--text-muted)' }}>
+                        {user.provider ? `via ${user.provider}` : 'Local account'}
+                      </p>
+                    </div>
+                    <button type="button" className="danger" onClick={() => terminateUser(user.uid)}>
+                      ❌ Terminate
+                    </button>
                   </div>
-                  <button type="button" className="danger" onClick={() => terminateUser(user.uid)}>Terminate</button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </section>
 
           <section className="admin-card">
-            <h2>Posts ({posts.length})</h2>
+            <h2>📝 Posts ({posts.length})</h2>
             <div className="admin-list">
-              {posts.map((post) => (
-                <div key={post.id} className="admin-item">
-                  <div>
-                    <strong>{post.title || "Untitled"}</strong>
-                    <p>{post.authorName || "Unknown"}</p>
+              {posts.length === 0 ? (
+                <div className="admin-empty">No posts found</div>
+              ) : (
+                posts.map((post) => (
+                  <div key={post.id} className="admin-item">
+                    <div>
+                      <strong>{post.title || "Untitled Post"}</strong>
+                      <p>👤 {post.authorName || "Unknown"}</p>
+                    </div>
+                    <button type="button" className="danger" onClick={() => deletePost(post.id)}>
+                      🗑️ Delete
+                    </button>
                   </div>
-                  <button type="button" className="danger" onClick={() => deletePost(post.id)}>Delete</button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </section>
 
           <section className="admin-card">
-            <h2>Mods ({mods.length})</h2>
+            <h2>🎮 Mods ({mods.length})</h2>
             <div className="admin-list">
-              {mods.map((mod) => (
-                <div key={mod.id} className="admin-item">
-                  <div>
-                    <strong>{mod.title || "Untitled Mod"}</strong>
-                    <p>{mod.authorName || "Unknown"}</p>
+              {mods.length === 0 ? (
+                <div className="admin-empty">No mods found</div>
+              ) : (
+                mods.map((mod) => (
+                  <div key={mod.id} className="admin-item">
+                    <div>
+                      <strong>{mod.title || "Untitled Mod"}</strong>
+                      <p>👤 {mod.authorName || "Unknown"}</p>
+                    </div>
+                    <button type="button" className="danger" onClick={() => deleteMod(mod.id)}>
+                      🗑️ Delete
+                    </button>
                   </div>
-                  <button type="button" className="danger" onClick={() => deleteMod(mod.id)}>Delete</button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </section>
 
           {/* Error Logs Section */}
           <section className="admin-card admin-logs-card">
             <div className="admin-card-header">
-              <h2>🔍 Error Logs ({filteredLogs.length})</h2>
+              <h2>🔍 Error Log Explorer ({filteredLogs.length})</h2>
               <div className="admin-logs-controls">
                 <input
                   type="text"
                   className="log-search-input"
-                  placeholder="Search Ray ID, path, message..."
+                  placeholder="🔎 Search Ray ID, path, or message..."
                   value={logSearch}
                   onChange={(e) => setLogSearch(e.target.value)}
                 />
-                <button type="button" onClick={loadAll} title="Refresh">🔄</button>
-                <button type="button" className="danger" onClick={clearAllLogs} title="Clear all logs">🗑️</button>
+                <button type="button" onClick={loadAll} disabled={isLoading} title="Refresh logs">
+                  🔄
+                </button>
+                <button type="button" className="danger" onClick={clearAllLogs} title="Clear all logs">
+                  🗑️ Clear All
+                </button>
               </div>
             </div>
             <div className="admin-list admin-logs-list">
               {filteredLogs.length === 0 ? (
-                <div className="admin-empty">No error logs found</div>
+                <div className="admin-empty">
+                  {logSearch ? "No logs match your search" : "No error logs found - system is healthy! ✨"}
+                </div>
               ) : (
                 filteredLogs.map((log) => (
                   <div key={log.rayId} className="admin-log-item" onClick={() => viewLogDetails(log)}>
                     <div className="log-header">
                       <span className={`log-type-badge ${log.type || 'error'}`}>
-                        {log.type || 'error'}
+                        {log.type === 'slow_request' ? '⏱️ SLOW' : '🚨 ERROR'}
                       </span>
-                      <span className="log-ray-id">{log.rayId}</span>
+                      <span className="log-ray-id">🆔 {log.rayId}</span>
                     </div>
                     <div className="log-message">{log.message || 'No message'}</div>
                     <div className="log-meta">
                       <span>📍 {log.path}</span>
                       <span>🕐 {formatDate(log.timestamp)}</span>
-                      {log.duration && <span>⏱️ {log.duration}ms</span>}
+                      {log.duration && <span>⏱️ {formatDuration(log.duration)}</span>}
                       {log.country && <span>🌍 {log.country}</span>}
+                      {log.method && <span>🔧 {log.method}</span>}
                     </div>
                   </div>
                 ))
@@ -272,58 +338,79 @@ export default function AdminPanel() {
         <div className="admin-modal" onClick={closeLogModal}>
           <div className="admin-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <h2>Error Log Details</h2>
+              <h2>🔍 Log Details</h2>
               <button className="modal-close" onClick={closeLogModal}>×</button>
             </div>
             <div className="admin-modal-body">
               <div className="log-detail-section">
-                <strong>Ray ID:</strong> <code>{selectedLog.rayId}</code>
+                <strong>🆔 Ray ID</strong>
+                <code>{selectedLog.rayId}</code>
               </div>
               <div className="log-detail-section">
-                <strong>Type:</strong> <span className={`log-type-badge ${selectedLog.type}`}>{selectedLog.type}</span>
+                <strong>🏷️ Type</strong>
+                <span className={`log-type-badge ${selectedLog.type}`}>
+                  {selectedLog.type === 'slow_request' ? '⏱️ SLOW REQUEST' : '🚨 ERROR'}
+                </span>
               </div>
               <div className="log-detail-section">
-                <strong>Timestamp:</strong> {formatDate(selectedLog.timestamp)}
+                <strong>🕐 Timestamp</strong>
+                <div style={{ color: 'var(--text-primary)', marginTop: '0.5rem' }}>
+                  {formatDate(selectedLog.timestamp)}
+                </div>
               </div>
               <div className="log-detail-section">
-                <strong>Path:</strong> {selectedLog.path}
+                <strong>📍 Request Path</strong>
+                <code>{selectedLog.path}</code>
               </div>
               <div className="log-detail-section">
-                <strong>Method:</strong> {selectedLog.method}
+                <strong>🔧 HTTP Method</strong>
+                <code>{selectedLog.method}</code>
               </div>
               {selectedLog.duration && (
                 <div className="log-detail-section">
-                  <strong>Duration:</strong> {selectedLog.duration}ms
+                  <strong>⏱️ Duration</strong>
+                  <code>{formatDuration(selectedLog.duration)}</code>
                 </div>
               )}
               {selectedLog.ip && (
                 <div className="log-detail-section">
-                  <strong>IP:</strong> {selectedLog.ip}
+                  <strong>🌐 IP Address</strong>
+                  <code>{selectedLog.ip}</code>
                 </div>
               )}
               {selectedLog.country && (
                 <div className="log-detail-section">
-                  <strong>Country:</strong> {selectedLog.country}
+                  <strong>🌍 Country</strong>
+                  <code>{selectedLog.country}</code>
                 </div>
               )}
               {selectedLog.userAgent && (
                 <div className="log-detail-section">
-                  <strong>User Agent:</strong> {selectedLog.userAgent}
+                  <strong>🖥️ User Agent</strong>
+                  <div className="log-detail-box">{selectedLog.userAgent}</div>
+                </div>
+              )}
+              {selectedLog.referer && (
+                <div className="log-detail-section">
+                  <strong>🔗 Referer</strong>
+                  <div className="log-detail-box">{selectedLog.referer}</div>
                 </div>
               )}
               <div className="log-detail-section">
-                <strong>Message:</strong>
+                <strong>💬 Error Message</strong>
                 <div className="log-detail-box">{selectedLog.message}</div>
               </div>
               {selectedLog.stack && (
                 <div className="log-detail-section">
-                  <strong>Stack Trace:</strong>
+                  <strong>📚 Stack Trace</strong>
                   <pre className="log-detail-stack">{selectedLog.stack}</pre>
                 </div>
               )}
               <div className="admin-modal-actions">
-                <button className="danger" onClick={() => deleteLog(selectedLog.rayId)}>Delete This Log</button>
-                <button onClick={closeLogModal}>Close</button>
+                <button className="danger" onClick={() => deleteLog(selectedLog.rayId)}>
+                  🗑️ Delete This Log
+                </button>
+                <button onClick={closeLogModal}>✖️ Close</button>
               </div>
             </div>
           </div>
