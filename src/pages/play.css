@@ -1,21 +1,23 @@
 .play-page {
   min-height: calc(100vh - 90px);
   padding: 1.2rem;
+  background: linear-gradient(135deg, #0a1929 0%, #132f4c 100%);
   color: #f3f7ff;
 }
 
 .play-shell {
-  width: min(100%, 1180px);
+  width: min(100%, 1400px);
   margin: 0 auto;
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .play-header {
-  background: rgba(8, 14, 28, 0.9);
-  border: 1px solid rgba(145, 171, 237, 0.25);
-  border-radius: 16px;
-  padding: 0.9rem 1rem;
+  background: rgba(19, 47, 76, 0.8);
+  border: 1px solid rgba(58, 167, 165, 0.3);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  backdrop-filter: blur(10px);
 }
 
 .play-header h1,
@@ -23,54 +25,211 @@
   margin: 0;
 }
 
+.play-header h1 {
+  font-size: 2rem;
+  color: #5ddef4;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+}
+
 .play-header p {
-  margin-top: 0.35rem;
-  color: #c9d8fb;
+  color: #b0c4de;
+  font-size: 0.95rem;
 }
 
 .play-canvas-wrap {
   background: rgba(10, 16, 31, 0.95);
-  border: 1px solid rgba(121, 141, 191, 0.25);
-  border-radius: 16px;
+  border: 1px solid rgba(58, 167, 165, 0.3);
+  border-radius: 12px;
   overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .play-canvas {
   display: block;
   width: 100%;
-  height: min(70vh, 760px);
+  height: min(70vh, 800px);
   background: #000;
+  cursor: pointer;
 }
 
-.play-console-wrap,
-.play-help {
-  background: rgba(13, 21, 37, 0.9);
-  border: 1px solid rgba(121, 141, 191, 0.25);
-  border-radius: 16px;
-  padding: 0.8rem 1rem;
+.play-canvas:hover {
+  cursor: crosshair;
 }
 
-.play-console-wrap label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-weight: 700;
+/* HUD Overlay */
+.play-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  color: #fff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
 }
 
-.play-console-wrap input {
-  width: 100%;
-  border-radius: 10px;
-  border: 1px solid rgba(146, 166, 209, 0.35);
-  background: #0a1222;
-  color: #f2f6ff;
-  padding: 0.6rem 0.75rem;
+.hud-item {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
 }
 
-.play-help h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
+.hud-item:nth-child(1) {
+  top: 10px;
+  left: 10px;
+}
+
+.hud-item:nth-child(2) {
+  top: 45px;
+  left: 10px;
+}
+
+.hud-item:nth-child(3) {
+  top: 80px;
+  left: 10px;
+}
+
+.crosshair {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  background: none;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: bold;
+}
+
+.play-help,
+.play-info {
+  background: rgba(19, 47, 76, 0.8);
+  border: 1px solid rgba(58, 167, 165, 0.3);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.play-help h2,
+.play-info h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  color: #5ddef4;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .play-help ul {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 1.5rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.play-help li {
+  color: #b0c4de;
+}
+
+.play-help strong {
+  color: #5ddef4;
+  font-family: 'Courier New', monospace;
+}
+
+.play-info p {
+  margin: 0;
+  color: #b0c4de;
+  line-height: 1.6;
+}
+
+.play-info strong {
+  color: #5ddef4;
+}
+
+/* Loading and error states */
+.play-loading,
+.play-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #fff;
+  z-index: 10;
+}
+
+.play-loading::after {
+  content: '...';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+.play-error {
+  color: #ff4757;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .play-page {
+    padding: 0.75rem;
+  }
+
+  .play-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .play-canvas {
+    height: 50vh;
+  }
+
+  .hud-item {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.7rem;
+  }
+
+  .crosshair {
+    font-size: 1.5rem;
+  }
+
+  .play-help,
+  .play-info {
+    padding: 1rem;
+  }
+}
+
+/* Pointer lock indicator */
+.play-canvas-wrap::before {
+  content: 'Click to play';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #5ddef4;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-size: 1.25rem;
+  font-weight: bold;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s;
+  z-index: 5;
+}
+
+.play-canvas-wrap:has(.play-canvas:focus)::before,
+.play-canvas-wrap.playing::before {
+  opacity: 0;
 }
