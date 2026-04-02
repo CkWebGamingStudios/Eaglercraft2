@@ -1,30 +1,65 @@
-import { useEffect, useState } from "react";
-import { ELGE } from "../elge/master/ELGE.js";
+import { useEffect, useRef, useState } from "react";
 import "./play.css";
 
 export default function Play() {
-  const [bootStatus, setBootStatus] = useState("Booting Minecraft: Web Edition runtime...");
+  const canvasRef = useRef(null);
+  const gameRef = useRef(null);
+  const [gameInfo, setGameInfo] = useState({
+    position: 'Loading...',
+    chunk: '',
+    chunks: '',
+    fps: ''
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
+    let infoInterval = null;
 
-    async function startEngine() {
+    async function initGame() {
       try {
-        await ELGE.engine.start();
-        if (isMounted) {
-          setBootStatus("Minecraft: Web Edition is ready. Click the canvas to start playing.");
-        }
-      } catch (error) {
-        if (isMounted) {
-          setBootStatus(`Engine failed to start: ${error?.message || "Unknown error"}`);
+        setIsLoading(true);
+        
+        // Dynamically import the game
+        const { MinecraftGame } = await import('https://ckwebgamingstudios.github.io/Minecraft-Web-Edition/index.js');
+        
+        if (!mounted) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        // Create and start game
+        const game = new MinecraftGame(canvas);
+        gameRef.current = game;
+        
+        game.start();
+        
+        // Update info display
+        infoInterval = setInterval(() => {
+          if (gameRef.current) {
+            setGameInfo(gameRef.current.getInfo());
+          }
+        }, 100);
+
+        setIsLoading(false);
+      } catch (err) {
+        console.error('[Play] Failed to start game:', err);
+        if (mounted) {
+          setError(err.message);
+          setIsLoading(false);
         }
       }
     }
 
-    startEngine();
+    initGame();
 
     return () => {
-      isMounted = false;
+      mounted = false;
+      if (infoInterval) clearInterval(infoInterval);
+      if (gameRef.current) {
+        gameRef.current.stop();
+      }
     };
   }, []);
 
@@ -33,26 +68,42 @@ export default function Play() {
       <div className="play-shell">
         <header className="play-header">
           <h1>Minecraft: Web Edition</h1>
-          <p>{bootStatus}</p>
+          <p>
+            {isLoading ? 'Loading game engine...' : 
+             error ? `Error: ${error}` :
+             'Click canvas to play. Use WASD to move, Space to jump, Mouse to look around.'}
+          </p>
         </header>
 
         <div className="play-canvas-wrap">
-          <canvas id="victus-canvas" className="play-canvas" />
-        </div>
-
-        <div className="play-console-wrap">
-          <label htmlFor="elge-console-input">Developer Console</label>
-          <input id="elge-console-input" placeholder="Type command…" />
+          <canvas ref={canvasRef} className="play-canvas" />
+          
+          {!isLoading && !error && (
+            <div className="play-hud">
+              <div className="hud-item">{gameInfo.position}</div>
+              <div className="hud-item">{gameInfo.chunk}</div>
+              <div className="hud-item">{gameInfo.chunks}</div>
+              <div className="hud-item crosshair">+</div>
+            </div>
+          )}
         </div>
 
         <div className="play-help">
-          <h2>Quick Controls</h2>
+          <h2>Controls</h2>
           <ul>
-            <li>W/A/S/D: Move</li>
-            <li>Mouse: Look around</li>
-            <li>Space: Jump</li>
-            <li>Enter command in console input for debug/runtime tools</li>
+            <li><strong>W/A/S/D</strong> - Move forward/left/backward/right</li>
+            <li><strong>Space</strong> - Jump</li>
+            <li><strong>Mouse</strong> - Look around (click canvas first)</li>
+            <li><strong>ESC</strong> - Release mouse</li>
           </ul>
+        </div>
+
+        <div className="play-info">
+          <h2>About</h2>
+          <p>
+            Minecraft: Web Edition is powered by the <strong>ELGE</strong> (Eaglercraft Low-End Game Engine)
+            with procedural terrain generation, real-time chunk loading, and optimized WebGL rendering.
+          </p>
         </div>
       </div>
     </section>
