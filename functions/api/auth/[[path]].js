@@ -1,13 +1,11 @@
-const DEFAULT_ACCOUNT_ID = "432016fb922777d8a5140c9b3b3d37f3";
-const SESSION_COOKIE = "eagler_session";
-const SESSION_EXPIRY_MS = 60 * 60 * 24 * 30 * 1000; // 30 days in milliseconds
+const ADMIN_COOKIE = "eagler_admin_session";
 
-function json(status, body, extraHeaders = {}) {
-  return new Response(JSON.stringify(body), {
+function json(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...extraHeaders
+      ...headers
     }
   });
 }
@@ -22,509 +20,381 @@ function parseCookies(request) {
       .map((cookie) => {
         const idx = cookie.indexOf("=");
         if (idx < 0) return [cookie, ""];
-        return [cookie.slice(0, idx), decodeURIComponent(cookie.slice(idx + 1))];
+        
+        const key = cookie.slice(0, idx);
+        let value = cookie.slice(idx + 1);
+        
+        // Wrapped in try/catch to prevent malformed URI errors
+        try {
+          value = decodeURIComponent(value);
+        } catch {
+          // Fallback to raw value if decoding fails
+        }
+        
+        return [key, value];
       })
   );
 }
 
-function getKvAdapter(env) {
-  const binding = env.ELGE_USERS_KV || env.USER_PROFILE_KV;
-  if (binding) {
-    return {
-      async get(key) {
-        return binding.get(key);
-      },
-      async put(key, value) {
-        await binding.put(key, value);
-      },
-      async del(key) {
-        await binding.delete(key);
-      },
-      async list(prefix, cursor) {
-        const result = await binding.list({ prefix, cursor });
-        return {
-          keys: Array.isArray(result?.keys) ? result.keys.map((entry) => ({ name: entry.name })) : [],
-          cursor: result?.list_complete ? "" : (result?.cursor || "")
-        };
-      }
-    };
-  }
-
-  const token = env.CF_API_TOKEN;
-  const namespaceId = env.CF_KV_NAMESPACE_ID;
-  const accountId = env.CF_ACCOUNT_ID || DEFAULT_ACCOUNT_ID;
-  if (!token || !namespaceId) return null;
-
-  const base = `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}`;
-  const valueBase = `${base}/values`;
-  const authHeaders = { Authorization: `Bearer ${token}` };
-
-  return {
-    async get(key) {
-      const response = await fetch(`${valueBase}/${encodeURIComponent(key)}`, { headers: authHeaders });
-      if (response.status === 404) return null;
-      if (!response.ok) throw new Error(`KV API get failed: ${response.status}`);
-      return response.text();
-    },
-     async put(key, value, options = {}) {
-      const url = `${valueBase}/${encodeURIComponent(key)}`;
-      const headers = { ...authHeaders, "Content-Type": "text/plain" };
-      
-      // Support TTL expiration
-      if (options?.expirationTtl) {
-        headers["Expiration-TTL"] = String(options.expirationTtl);
-      }
-      
-      const response = await fetch(url, {
-        method: "PUT",
-        headers,
-        body: value
-      });
-      
-      if (!response.ok) throw new Error(`KV API put failed: ${response.status}`);
-    },
-    async del(key) {
-      await fetch(`${valueBase}/${encodeURIComponent(key)}`, { method: "DELETE", headers: authHeaders });
-    },
-    async list(prefix = "", cursor = "") {
-      const listUrl = new URL(`${base}/keys`);
-      if (prefix) listUrl.searchParams.set("prefix", prefix);
-      if (cursor) listUrl.searchParams.set("cursor", cursor);
-      listUrl.searchParams.set("limit", "1000");
-
-      const response = await fetch(listUrl.toString(), { headers: authHeaders });
-      if (!response.ok) throw new Error(`KV API list failed: ${response.status}`);
-      const payload = await response.json();
-      const result = payload?.result || [];
-      const info = payload?.result_info || {};
-      return {
-        keys: result.map((entry) => ({ name: entry.name })),
-        cursor: info?.cursor || ""
-      };
-    }
-  };
+function sessionCookie(token, secure) {
+  const securePart = secure ? "; Secure" : "";
+  return `${ADMIN_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly${securePart}; SameSite=Lax; Max-Age=${60 * 60 * 24}`;
 }
 
-function providerConfig(provider, env, origin) {
-  if (provider === "google") {
-    return {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-      authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-      tokenUrl: "https://oauth2.googleapis.com/token",
-      redirectUri: `${origin}/api/auth/callback/google`,
-      scope: "openid email profile"
-    };
-  }
-
-  if (provider === "github") {
-    return {
-      clientId: env.GITHUB_CLIENT_ID,
-      clientSecret: env.GITHUB_CLIENT_SECRET,
-      authUrl: "https://github.com/login/oauth/authorize",
-      tokenUrl: "https://github.com/login/oauth/access_token",
-      redirectUri: `${origin}/api/auth/callback/github`,
-      scope: "read:user user:email"
-    };
-  }
-
-  return null;
+function clearSessionCookie(secure) {
+  const securePart = secure ? "; Secure" : "";
+  return `${ADMIN_COOKIE}=; Path=/; HttpOnly${securePart}; SameSite=Lax; Max-Age=0`;
 }
 
-function buildSessionCookie(token, isSecure, maxAge = 60 * 60 * 24 * 30) {
-  const securePart = isSecure ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly${securePart}; SameSite=Lax; Max-Age=${maxAge}`;
+function usersKv(env) {
+  return env.ELGE_USERS_KV || env.USER_PROFILE_KV;
 }
 
-function clearSessionCookie(isSecure) {
-  const securePart = isSecure ? "; Secure" : "";
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly${securePart}; SameSite=Lax; Max-Age=0`;
+function forumsKv(env) {
+  return env.ELGE_FORUMS;
 }
 
-function redirectWithError(origin, message) {
-  const next = new URL(origin);
-  next.searchParams.set("auth_error", message);
-  return Response.redirect(next.toString(), 302);
+function modsKv(env) {
+  return env.ELGE_MODDIT || env.ELGE_FORUMS;
 }
 
-async function readSessionUser(adapter, request) {
-  const cookies = parseCookies(request);
-  const sessionToken = cookies[SESSION_COOKIE];
-  if (!sessionToken) return { error: "Not authenticated", status: 401 };
-
-  const sessionRaw = await adapter.get(`auth:session:${sessionToken}`);
-  if (!sessionRaw) return { error: "Session expired", status: 401 };
-
-  const session = JSON.parse(sessionRaw);
-  const userRaw = (await adapter.get(`auth:user:${session.uid}`)) || (await adapter.get(session.uid));
-  if (!userRaw) return { error: "User no longer exists", status: 401, sessionToken };
-
-  return { sessionToken, session, user: JSON.parse(userRaw) };
+function errorLogsKv(env) {
+  return env.ERROR_LOGS || env.ELGE_USERS_KV;
 }
 
-async function listKeysByPrefix(adapter, prefix) {
-  const keys = [];
-  let cursor = "";
-
+async function listAll(kv, prefix) {
+  if (!kv?.list) return [];
+  const out = [];
+  let cursor;
   do {
-    const page = await adapter.list(prefix, cursor);
-    const pageKeys = Array.isArray(page?.keys) ? page.keys : [];
-    keys.push(...pageKeys);
-    cursor = page?.cursor || "";
+    const res = await kv.list({ prefix, cursor });
+    out.push(...(res?.keys || []));
+    cursor = res?.list_complete ? undefined : res?.cursor;
   } while (cursor);
-
-  return keys;
+  return out;
 }
 
-function normalizedEmail(email) {
-  if (!email || typeof email !== "string") {
-    return "";
-  }
-
-  return email.trim().toLowerCase();
-}
-
-function buildGitHubHeaders(accessToken) {
-  return {
-    Authorization: `Bearer ${accessToken}`,
-    Accept: "application/vnd.github+json",
-    "User-Agent": "Eaglercraft2-Auth"
-  };
-}
-
-async function parseProviderError(response, defaultMessage) {
-  const body = await response.text();
-  let errorMessage = defaultMessage;
-
-  if (body) {
-    try {
-      const parsed = JSON.parse(body);
-      const providerMessage = parsed?.error_description || parsed?.error || parsed?.message;
-      if (typeof providerMessage === "string" && providerMessage.trim()) {
-        errorMessage = `${defaultMessage}: ${providerMessage}`;
-      }
-    } catch {
-      errorMessage = `${defaultMessage}: ${body.slice(0, 200)}`;
-    }
-  }
-
-  return new Error(`${errorMessage} (HTTP ${response.status})`);
-}
-
-async function exchangeToken(provider, config, code) {
-  if (provider === "google") {
-    const response = await fetch(config.tokenUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: config.redirectUri
-      })
-    });
-    if (!response.ok) throw new Error("Google token exchange failed");
-    return response.json();
-  }
-
-  const response = await fetch(config.tokenUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json"
-    },
-    body: new URLSearchParams({
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      code,
-      redirect_uri: config.redirectUri
-    })
-  });
-  if (!response.ok) throw await parseProviderError(response, "GitHub token exchange failed");
-  return response.json();
-}
-
-async function fetchProviderIdentity(provider, accessToken) {
-  if (provider === "google") {
-    const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok) throw new Error("Google user lookup failed");
-    const profile = await response.json();
-    return {
-      providerId: profile.sub,
-      email: profile.email || "",
-      username: profile.name || profile.given_name || "google-user",
-      profilePicture: profile.picture || ""
-    };
-  }
-
-  const response = await fetch("https://api.github.com/user", {
-    headers: buildGitHubHeaders(accessToken)
-  });
-  if (!response.ok) throw await parseProviderError(response, "GitHub user lookup failed");
-  const profile = await response.json();
-
-  let email = profile.email || "";
-  if (!email) {
-    const emailsResponse = await fetch("https://api.github.com/user/emails", {
-      headers: buildGitHubHeaders(accessToken)
-    });
-    if (emailsResponse.ok) {
-      const emails = await emailsResponse.json();
-      const primary = Array.isArray(emails) ? emails.find((entry) => entry.primary) : null;
-      email = primary?.email || emails?.[0]?.email || "";
-    }
-  }
-
-  return {
-    providerId: String(profile.id),
-    email,
-    username: profile.login || profile.name || "github-user",
-    profilePicture: profile.avatar_url || ""
-  };
+async function requireAdmin(request, env) {
+  const kv = usersKv(env);
+  if (!kv) return { ok: false, response: json({ error: "Users KV not bound" }, 500) };
+  const token = parseCookies(request)[ADMIN_COOKIE];
+  if (!token) return { ok: false, response: json({ error: "Admin auth required" }, 401) };
+  const session = await kv.get(`admin:session:${token}`);
+  if (!session) return { ok: false, response: json({ error: "Admin session expired" }, 401) };
+  return { ok: true, kv, token };
 }
 
 export async function onRequest(context) {
-  const { request, env } = context;
-  const adapter = getKvAdapter(env);
-
-  if (!adapter) {
-    return json(500, { success: false, errors: [{ message: "Missing KV backend for auth" }] });
-  }
-
-  const url = new URL(request.url);
-  const isSecure = url.protocol === "https:";
-  const segments = url.pathname.split("/").filter(Boolean);
-  const authIndex = segments.indexOf("auth");
-  const tail = authIndex >= 0 ? segments.slice(authIndex + 1) : [];
+  const { request, env, params } = context;
+  const isSecure = new URL(request.url).protocol === "https:";
+  const rawPath = params?.path;
+  const tail = Array.isArray(rawPath)
+    ? rawPath.filter(Boolean)
+    : (typeof rawPath === "string" ? rawPath.split("/").filter(Boolean) : []);
   const action = tail[0] || "";
-  const provider = tail[1] || "";
 
-  if (request.method === "GET" && action === "users") {
-    const userKeys = await listKeysByPrefix(adapter, "auth:user:");
-    const sessionKeys = await listKeysByPrefix(adapter, "auth:session:");
+  // ============================================
+  // AUTH ROUTES
+  // ============================================
 
-    const onlineUidSet = new Set();
-    for (const keyEntry of sessionKeys) {
-      const sessionRaw = await adapter.get(keyEntry.name);
-      if (!sessionRaw) continue;
-      try {
-        const parsed = JSON.parse(sessionRaw);
-        if (parsed?.uid) {
-          onlineUidSet.add(parsed.uid);
-        }
-      } catch {
-        // ignore malformed session entries
-      }
-    }
-
-    const users = [];
-    for (const keyEntry of userKeys) {
-      const userRaw = await adapter.get(keyEntry.name);
-      if (!userRaw) continue;
-      try {
-        const user = JSON.parse(userRaw);
-        users.push({
-          uid: user.uid,
-          username: user.username || "User",
-          profilePicture: user.profilePicture || "",
-          bio: user.bio || "",
-          country: user.country || "",
-          updatedAt: user.updatedAt || "",
-          isOnline: Boolean(user.uid && onlineUidSet.has(user.uid))
-        });
-      } catch {
-        // ignore malformed user entries
-      }
-    }
-
-    users.sort((a, b) => {
-      if (a.isOnline !== b.isOnline) {
-        return a.isOnline ? -1 : 1;
-      }
-
-      return String(a.username).localeCompare(String(b.username));
-    });
-
-    return json(200, { success: true, result: users });
-  }
-
-  if (request.method === "GET" && action === "login") {
-    const config = providerConfig(provider, env, url.origin);
-    if (!config || !config.clientId || !config.clientSecret) {
-      return redirectWithError(url.origin, `Missing OAuth config for ${provider}`);
-    }
- 
-    const state = crypto.randomUUID();
-    
-    // Layer 2: Set TTL for 10 minutes as backup cleanup
-    await adapter.put(
-      `auth:state:${state}`,
-      JSON.stringify({ provider, createdAt: Date.now() }),
-      { expirationTtl: 600 }  // Auto-delete after 10 minutes
-      }
-    
-  if (request.method === "GET" && action === "callback") {
-    const config = providerConfig(provider, env, url.origin);
-    if (!config) return redirectWithError(url.origin, "Unknown provider");
-
-    const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state");
-    if (!code || !state) {
-      return redirectWithError(url.origin, "Missing code/state from provider callback");
-    }
-
-    const stateEntry = await adapter.get(`auth:state:${state}`);
-    if (!stateEntry) return redirectWithError(url.origin, "Invalid or expired auth state");
-    await adapter.del(`auth:state:${state}`);
-
+  if (request.method === "POST" && action === "login") {
+    let body;
     try {
-      const tokenPayload = await exchangeToken(provider, config, code);
-      const accessToken = tokenPayload.access_token;
-      if (!accessToken) return redirectWithError(url.origin, "Missing access token from provider");
-
-      const identity = await fetchProviderIdentity(provider, accessToken);
-      const mapKey = `auth:map:${provider}:${identity.providerId}`;
-      const mappedUid = await adapter.get(mapKey);
-      const emailKey = identity.email ? `auth:email:${normalizedEmail(identity.email)}` : "";
-      const emailMappedUid = emailKey ? await adapter.get(emailKey) : null;
-      const existingUid = mappedUid || emailMappedUid;
-
-      if (existingUid) {
-        const existingProfileRaw = (await adapter.get(`auth:user:${existingUid}`)) || (await adapter.get(existingUid));
-        if (!existingProfileRaw) {
-          return redirectWithError(url.origin, "This account has been deleted and can no longer sign in.");
-        }
-      }
-
-      const uid = existingUid || crypto.randomUUID();
-
-      if (!mappedUid) {
-        await adapter.put(mapKey, uid);
-      }
-      if (emailKey) {
-        await adapter.put(emailKey, uid);
-      }
-
-      const profile = {
-        title: uid,
-        uid,
-        email: identity.email,
-        country: "",
-        username: identity.username,
-        profilePicture: identity.profilePicture,
-        providerId: identity.providerId,
-        bio: "",
-        provider,
-        updatedAt: new Date().toISOString()
-      };
-
-      await adapter.put(`auth:user:${uid}`, JSON.stringify(profile));
-      await adapter.put(uid, JSON.stringify(profile));
-
-      const sessionToken = `${crypto.randomUUID()}-${Date.now()}`;
-      await adapter.put(`auth:session:${sessionToken}`, JSON.stringify({ uid, createdAt: Date.now() }));
-
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: "/",
-          "Set-Cookie": buildSessionCookie(sessionToken, isSecure)
-        }
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "OAuth callback failed";
-      return redirectWithError(url.origin, message);
-    }
-  }
-
-  if (request.method === "GET" && action === "me") {
-    const auth = await readSessionUser(adapter, request);
-    if (auth.error) {
-      if (auth.sessionToken) {
-        await adapter.del(`auth:session:${auth.sessionToken}`);
-      }
-      const maybeCookie = auth.error === "User no longer exists" ? { "Set-Cookie": clearSessionCookie(isSecure) } : {};
-      return json(auth.status || 401, { success: false, errors: [{ message: auth.error }] }, maybeCookie);
-    }
-    return json(200, { success: true, result: auth.user });
-  }
-
-  if (request.method === "GET" && action === "user" && tail[1]) {
-    const targetUid = tail[1];
-    const userRaw = (await adapter.get(`auth:user:${targetUid}`)) || (await adapter.get(targetUid));
-    if (!userRaw) return json(404, { success: false, errors: [{ message: "User not found" }] });
-    const user = JSON.parse(userRaw);
-    return json(200, {
-      success: true,
-      result: {
-        uid: user.uid,
-        username: user.username,
-        bio: user.bio || "",
-        profilePicture: user.profilePicture || "",
-        country: user.country || "",
-        updatedAt: user.updatedAt || ""
-      }
-    });
-  }
-
-  if (request.method === "POST" && action === "profile") {
-    const auth = await readSessionUser(adapter, request);
-    if (auth.error) return json(auth.status, { success: false, errors: [{ message: auth.error }] });
-
-    let patch;
-    try {
-      patch = await request.json();
+      body = await request.json();
     } catch {
-      return json(400, { success: false, errors: [{ message: "Invalid JSON body" }] });
+      return json({ error: "Invalid JSON" }, 400);
     }
 
-    const nextProfile = {
-      ...auth.user,
-      username: typeof patch.username === "string" ? patch.username.trim().slice(0, 40) || auth.user.username : auth.user.username,
-      profilePicture: typeof patch.profilePicture === "string" ? patch.profilePicture.trim().slice(0, 500) : auth.user.profilePicture,
-      bio: typeof patch.bio === "string" ? patch.bio.trim().slice(0, 280) : (auth.user.bio || ""),
-      country: typeof patch.country === "string" ? patch.country.trim().slice(0, 80) : (auth.user.country || ""),
-      updatedAt: new Date().toISOString()
-    };
-
-    await adapter.put(`auth:user:${auth.user.uid}`, JSON.stringify(nextProfile));
-    await adapter.put(auth.user.uid, JSON.stringify(nextProfile));
-    return json(200, { success: true, result: nextProfile });
-  }
-
-  if (request.method === "DELETE" && action === "account") {
-    const auth = await readSessionUser(adapter, request);
-    if (auth.error) return json(auth.status, { success: false, errors: [{ message: auth.error }] });
-
-    if (auth.sessionToken) {
-      await adapter.del(`auth:session:${auth.sessionToken}`);
-    }
-    await adapter.del(`auth:user:${auth.user.uid}`);
-    await adapter.del(auth.user.uid);
-
-    if (auth.user.provider && auth.user.providerId) {
-      await adapter.del(`auth:map:${auth.user.provider}:${auth.user.providerId}`);
-    }
-    const email = normalizedEmail(auth.user.email || "");
-    if (email) {
-      await adapter.del(`auth:email:${email}`);
+    if (!env.ADMIN_PASS) {
+      return json({ error: "ADMIN_PASS is not configured" }, 500);
     }
 
-    return json(200, { success: true }, { "Set-Cookie": clearSessionCookie(isSecure) });
+    if ((body?.password || "") !== env.ADMIN_PASS) {
+      return json({ error: "Invalid admin password" }, 401);
+    }
+
+    const kv = usersKv(env);
+    if (!kv) return json({ error: "Users KV not bound" }, 500);
+
+    const token = `${crypto.randomUUID()}-${Date.now()}`;
+    await kv.put(`admin:session:${token}`, JSON.stringify({ createdAt: Date.now() }), { expirationTtl: 60 * 60 * 24 });
+
+    return json({ success: true }, 200, { "Set-Cookie": sessionCookie(token, isSecure) });
   }
 
   if (request.method === "POST" && action === "logout") {
-    const cookies = parseCookies(request);
-    const sessionToken = cookies[SESSION_COOKIE];
-    if (sessionToken) {
-      await adapter.del(`auth:session:${sessionToken}`);
+    const kv = usersKv(env);
+    const token = parseCookies(request)[ADMIN_COOKIE];
+    if (kv && token) {
+      await kv.delete(`admin:session:${token}`);
     }
-
-    return json(200, { success: true }, { "Set-Cookie": clearSessionCookie(isSecure) });
+    return json({ success: true }, 200, { "Set-Cookie": clearSessionCookie(isSecure) });
   }
 
-  return json(404, { success: false, errors: [{ message: "Auth route not found" }] });
+  const admin = await requireAdmin(request, env);
+  if (!admin.ok) {
+    return admin.response;
+  }
+
+  const usersStore = admin.kv;
+
+  if (request.method === "GET" && action === "status") {
+    return json({ success: true, authenticated: true });
+  }
+
+  // ============================================
+  // USER ROUTES
+  // ============================================
+
+  if (request.method === "GET" && action === "users") {
+    const keys = await listAll(usersStore, "auth:user:");
+    const users = [];
+    for (const key of keys) {
+      const raw = await usersStore.get(key.name);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        users.push({
+          uid: parsed.uid,
+          username: parsed.username || "User",
+          email: parsed.email || "",
+          provider: parsed.provider || "",
+          updatedAt: parsed.updatedAt || ""
+        });
+      } catch {
+        // ignore
+      }
+    }
+    return json({ success: true, result: users });
+  }
+
+  if (request.method === "DELETE" && action === "users" && tail[1]) {
+    const uid = tail[1];
+    const profileRaw = await usersStore.get(`auth:user:${uid}`);
+    if (!profileRaw) return json({ error: "User not found" }, 404);
+
+    let profile = {};
+    try {
+      profile = JSON.parse(profileRaw);
+    } catch {
+      profile = {};
+    }
+
+    await usersStore.delete(`auth:user:${uid}`);
+    await usersStore.delete(uid);
+
+    if (profile.provider && profile.providerId) {
+      await usersStore.delete(`auth:map:${profile.provider}:${profile.providerId}`);
+    }
+    if (profile.email) {
+      await usersStore.delete(`auth:email:${String(profile.email).trim().toLowerCase()}`);
+    }
+
+    const sessionKeys = await listAll(usersStore, "auth:session:");
+    for (const key of sessionKeys) {
+      const raw = await usersStore.get(key.name);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.uid === uid) {
+          await usersStore.delete(key.name);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return json({ success: true });
+  }
+
+  // ============================================
+  // FORUM & MODS ROUTES
+  // ============================================
+
+  if (request.method === "GET" && action === "posts") {
+    const kv = forumsKv(env);
+    if (!kv) return json({ error: "Forums KV not bound" }, 500);
+    const posts = (await kv.get("posts", "json")) || [];
+    return json({ success: true, result: posts });
+  }
+
+  if (request.method === "DELETE" && action === "posts" && tail[1]) {
+    const kv = forumsKv(env);
+    if (!kv) return json({ error: "Forums KV not bound" }, 500);
+    const posts = (await kv.get("posts", "json")) || [];
+    const next = posts.filter((entry) => entry.id !== tail[1]);
+    if (next.length === posts.length) return json({ error: "Post not found" }, 404);
+    await kv.put("posts", JSON.stringify(next));
+    return json({ success: true });
+  }
+
+  if (request.method === "GET" && action === "mods") {
+    const kv = modsKv(env);
+    if (!kv) return json({ error: "Mods KV not bound" }, 500);
+    const mods = (await kv.get("moddit:mods", "json")) || [];
+    return json({ success: true, result: mods });
+  }
+
+  if (request.method === "DELETE" && action === "mods" && tail[1]) {
+    const kv = modsKv(env);
+    if (!kv) return json({ error: "Mods KV not bound" }, 500);
+    const mods = (await kv.get("moddit:mods", "json")) || [];
+    const next = mods.filter((entry) => entry.id !== tail[1]);
+    if (next.length === mods.length) return json({ error: "Mod not found" }, 404);
+    await kv.put("moddit:mods", JSON.stringify(next));
+    return json({ success: true });
+  }
+
+  // ============================================
+  // LOG EXPLORER ROUTES
+  // ============================================
+
+  const logKv = errorLogsKv(env);
+
+  // GET /api/admin/logs/stats - MOVED UP so it doesn't get caught by /logs/:rayId
+  if (request.method === "GET" && action === "logs" && tail[1] === "stats") {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const allKeys = await listAll(logKv, "error:");
+    const errorKeys = allKeys.filter(k => k.name.startsWith("error:") && !k.name.includes(":index:"));
+    
+    const stats = {
+      totalErrors: errorKeys.length,
+      errorsByType: {},
+      errorsByPath: {},
+      recentErrors: []
+    };
+
+    const sampleSize = Math.min(100, errorKeys.length);
+    for (let i = 0; i < sampleSize; i++) {
+      const raw = await logKv.get(errorKeys[i].name);
+      if (!raw) continue;
+      
+      try {
+        const log = JSON.parse(raw);
+        
+        const type = log.type || "error";
+        stats.errorsByType[type] = (stats.errorsByType[type] || 0) + 1;
+        
+        stats.errorsByPath[log.path] = (stats.errorsByPath[log.path] || 0) + 1;
+        
+        if (i < 10) {
+          stats.recentErrors.push({
+            rayId: log.rayId,
+            message: log.message,
+            path: log.path,
+            timestamp: log.timestamp
+          }); // Fixed missing brace here!
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    stats.recentErrors.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return json({ success: true, result: stats });
+  }
+
+  // GET /api/admin/logs - List all error logs (paginated)
+  if (request.method === "GET" && action === "logs" && !tail[1]) {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get("limit")) || 50;
+    const cursor = url.searchParams.get("cursor") || undefined;
+
+    const indexList = await logKv.list({ prefix: "error:index:", limit, cursor });
+    
+    const logs = [];
+    for (const key of indexList.keys) {
+      const rayId = await logKv.get(key.name);
+      if (!rayId) continue;
+      
+      const errorData = await logKv.get(`error:${rayId}`);
+      if (!errorData) continue;
+      
+      try {
+        logs.push(JSON.parse(errorData));
+      } catch {
+        // ignore malformed entries
+      }
+    }
+
+    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return json({
+      success: true,
+      result: {
+        logs,
+        hasMore: !indexList.list_complete,
+        cursor: indexList.cursor
+      }
+    });
+  }
+
+  // GET /api/admin/logs/:rayId - Get specific error by Ray ID
+  if (request.method === "GET" && action === "logs" && tail[1]) {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const rayId = tail[1];
+    const errorData = await logKv.get(`error:${rayId}`);
+    
+    if (!errorData) {
+      return json({ error: "Log not found" }, 404);
+    }
+
+    try {
+      const log = JSON.parse(errorData);
+      return json({ success: true, result: log });
+    } catch {
+      return json({ error: "Invalid log data" }, 500);
+    }
+  }
+
+  // DELETE /api/admin/logs/:rayId - Delete specific error log
+  if (request.method === "DELETE" && action === "logs" && tail[1]) {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const rayId = tail[1];
+    
+    const errorData = await logKv.get(`error:${rayId}`);
+    if (errorData) {
+      try {
+        const log = JSON.parse(errorData);
+        const indexKey = `error:index:${log.timestamp}:${rayId}`;
+        await logKv.delete(indexKey);
+      } catch {
+        // ignore
+      }
+    }
+    
+    await logKv.delete(`error:${rayId}`);
+    return json({ success: true });
+  }
+
+  // DELETE /api/admin/logs - Clear all error logs
+  if (request.method === "DELETE" && action === "logs" && !tail[1]) {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+
+    const allKeys = await listAll(logKv, "error:");
+    
+    // Safety check: KV might exceed maximum subrequest limit. 
+    // We cap it to 100 deletes at a time to prevent Worker crashes.
+    const keysToDelete = allKeys.slice(0, 100);
+    
+    for (const key of keysToDelete) {
+      await logKv.delete(key.name);
+    }
+
+    return json({ 
+      success: true, 
+      result: { 
+        deleted: keysToDelete.length,
+        message: allKeys.length > 100 ? "Limited to deleting 100 entries per request." : "All cleared."
+      } 
+    });
+  }
+
+  return json({ error: "Admin route not found" }, 404);
 }
