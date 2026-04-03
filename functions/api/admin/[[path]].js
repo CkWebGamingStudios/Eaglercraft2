@@ -20,7 +20,14 @@ function parseCookies(request) {
       .map((cookie) => {
         const idx = cookie.indexOf("=");
         if (idx < 0) return [cookie, ""];
-        return [cookie.slice(0, idx), decodeURIComponent(cookie.slice(idx + 1))];
+        const key = cookie.slice(0, idx);
+        let value = cookie.slice(idx + 1);
+        try {
+          value = decodeURIComponent(value);
+        } catch (e) {
+          // Fallback if decode fails
+        }
+        return [key, value];
       })
   );
 }
@@ -82,6 +89,8 @@ export async function onRequest(context) {
     : (typeof rawPath === "string" ? rawPath.split("/").filter(Boolean) : []);
   const action = tail[0] || "";
 
+  // --- PUBLIC ROUTES (Login/Logout) ---
+
   if (request.method === "POST" && action === "login") {
     let body;
     try {
@@ -116,19 +125,22 @@ export async function onRequest(context) {
     return json({ success: true }, 200, { "Set-Cookie": clearSessionCookie(isSecure) });
   }
 
-  const admin = await requireAdmin(request, env);
-  if (!admin.ok) {
-    return admin.response;
-  }
+  // --- ADMIN AUTH CHECK ---
 
+  const admin = await requireAdmin(request, env);
+  if (!admin.ok) return admin.response;
   const usersStore = admin.kv;
+
+  // --- PROTECTED ROUTES ---
 
   if (request.method === "GET" && action === "status") {
     return json({ success: true, authenticated: true });
   }
 
+  // GET USERS
   if (request.method === "GET" && action === "users") {
     const keys = await listAll(usersStore, "auth:user:");
+    // Note: This loop can be slow if you have 100+ users. Consider metadata in the future.
     const users = [];
     for (const key of keys) {
       const raw = await usersStore.get(key.name);
@@ -142,24 +154,19 @@ export async function onRequest(context) {
           provider: parsed.provider || "",
           updatedAt: parsed.updatedAt || ""
         });
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
     return json({ success: true, result: users });
   }
 
+  // DELETE USER
   if (request.method === "DELETE" && action === "users" && tail[1]) {
     const uid = tail[1];
     const profileRaw = await usersStore.get(`auth:user:${uid}`);
     if (!profileRaw) return json({ error: "User not found" }, 404);
 
     let profile = {};
-    try {
-      profile = JSON.parse(profileRaw);
-    } catch {
-      profile = {};
-    }
+    try { profile = JSON.parse(profileRaw); } catch { profile = {}; }
 
     await usersStore.delete(`auth:user:${uid}`);
     await usersStore.delete(uid);
@@ -177,17 +184,13 @@ export async function onRequest(context) {
       if (!raw) continue;
       try {
         const parsed = JSON.parse(raw);
-        if (parsed.uid === uid) {
-          await usersStore.delete(key.name);
-        }
-      } catch {
-        // ignore
-      }
+        if (parsed.uid === uid) await usersStore.delete(key.name);
+      } catch { /* ignore */ }
     }
-
     return json({ success: true });
   }
 
+  // FORUM POSTS
   if (request.method === "GET" && action === "posts") {
     const kv = forumsKv(env);
     if (!kv) return json({ error: "Forums KV not bound" }, 500);
@@ -205,6 +208,7 @@ export async function onRequest(context) {
     return json({ success: true });
   }
 
+  // MODS
   if (request.method === "GET" && action === "mods") {
     const kv = modsKv(env);
     if (!kv) return json({ error: "Mods KV not bound" }, 500);
@@ -222,38 +226,62 @@ export async function onRequest(context) {
     return json({ success: true });
   }
 
-  // ============================================
-  // LOG EXPLORER ROUTES
-  // ============================================
+  // --- LOG EXPLORER ROUTES ---
 
-  // GET /api/admin/logs - List all error logs (paginated)
-  if (request.method === "GET" && action === "logs") {
-    const kv = errorLogsKv(env);
-    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+  const logKv = errorLogsKv(env);
 
+  // Stats Route (Moved ABOVE specific RayID route)
+  if (request.method === "GET" && action === "logs" && tail[1] === "stats") {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+    const allKeys = await listAll(logKv, "error:");
+    const errorKeys = allKeys.filter(k => k.name.startsWith("error:") && !k.name.includes(":index:"));
+    
+    const stats = {
+      totalErrors: errorKeys.length,
+      errorsByType: {},
+      errorsByPath: {},
+      recentErrors: []
+    };
+
+    const sampleSize = Math.min(100, errorKeys.length);
+    for (let i = 0; i < sampleSize; i++) {
+      const raw = await logKv.get(errorKeys[i].name);
+      if (!raw) continue;
+      try {
+        const log = JSON.parse(raw);
+        const type = log.type || "error";
+        stats.errorsByType[type] = (stats.errorsByType[type] || 0) + 1;
+        stats.errorsByPath[log.path] = (stats.errorsByPath[log.path] || 0) + 1;
+        if (i < 10) {
+          stats.recentErrors.push({
+            rayId: log.rayId,
+            message: log.message,
+            path: log.path,
+            timestamp: log.timestamp
+          });
+        }
+      } catch { /* ignore */ }
+    }
+    stats.recentErrors.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return json({ success: true, result: stats });
+  }
+
+  // Generic Logs List
+  if (request.method === "GET" && action === "logs" && !tail[1]) {
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get("limit")) || 50;
     const cursor = url.searchParams.get("cursor") || undefined;
 
-    // List error index keys (sorted by timestamp)
-    const indexList = await kv.list({ prefix: "error:index:", limit, cursor });
-    
+    const indexList = await logKv.list({ prefix: "error:index:", limit, cursor });
     const logs = [];
     for (const key of indexList.keys) {
-      const rayId = await kv.get(key.name);
+      const rayId = await logKv.get(key.name);
       if (!rayId) continue;
-      
-      const errorData = await kv.get(`error:${rayId}`);
+      const errorData = await logKv.get(`error:${rayId}`);
       if (!errorData) continue;
-      
-      try {
-        logs.push(JSON.parse(errorData));
-      } catch {
-        // ignore malformed entries
-      }
+      try { logs.push(JSON.parse(errorData)); } catch { /* ignore */ }
     }
-
-    // Sort by timestamp descending (newest first)
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     return json({
@@ -266,114 +294,43 @@ export async function onRequest(context) {
     });
   }
 
-  // GET /api/admin/logs/:rayId - Get specific error by Ray ID
+  // Get Specific Log
   if (request.method === "GET" && action === "logs" && tail[1]) {
-    const kv = errorLogsKv(env);
-    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
-
-    const rayId = tail[1];
-    const errorData = await kv.get(`error:${rayId}`);
-    
-    if (!errorData) {
-      return json({ error: "Log not found" }, 404);
-    }
-
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+    const errorData = await logKv.get(`error:${tail[1]}`);
+    if (!errorData) return json({ error: "Log not found" }, 404);
     try {
-      const log = JSON.parse(errorData);
-      return json({ success: true, result: log });
+      return json({ success: true, result: JSON.parse(errorData) });
     } catch {
       return json({ error: "Invalid log data" }, 500);
     }
   }
 
-  // DELETE /api/admin/logs/:rayId - Delete specific error log
+  // Delete Specific Log
   if (request.method === "DELETE" && action === "logs" && tail[1]) {
-    const kv = errorLogsKv(env);
-    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
-
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
     const rayId = tail[1];
-    
-    // Get the log to find its timestamp for index cleanup
-    const errorData = await kv.get(`error:${rayId}`);
+    const errorData = await logKv.get(`error:${rayId}`);
     if (errorData) {
       try {
         const log = JSON.parse(errorData);
-        const indexKey = `error:index:${log.timestamp}:${rayId}`;
-        await kv.delete(indexKey);
-      } catch {
-        // ignore
-      }
+        await logKv.delete(`error:index:${log.timestamp}:${rayId}`);
+      } catch { /* ignore */ }
     }
-    
-    await kv.delete(`error:${rayId}`);
+    await logKv.delete(`error:${rayId}`);
     return json({ success: true });
   }
 
-  // DELETE /api/admin/logs - Clear all error logs
+  // Bulk Delete Logs
   if (request.method === "DELETE" && action === "logs") {
-    const kv = errorLogsKv(env);
-    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
-
-    // Delete all error logs and index entries
-    const allKeys = await listAll(kv, "error:");
-    let deleted = 0;
-    
-    for (const key of allKeys) {
-      await kv.delete(key.name);
-      deleted++;
+    if (!logKv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
+    const allKeys = await listAll(logKv, "error:");
+    // Safety: don't exceed subrequest limits (1000 is a safe bet for most Workers)
+    const toDelete = allKeys.slice(0, 500);
+    for (const key of toDelete) {
+      await logKv.delete(key.name);
     }
-
-    return json({ success: true, result: { deleted } });
-  }
-
-  // GET /api/admin/logs/stats - Get error statistics
-  if (request.method === "GET" && action === "logs" && tail[1] === "stats") {
-    const kv = errorLogsKv(env);
-    if (!kv) return json({ error: "ERROR_LOGS KV not bound" }, 500);
-
-    const allKeys = await listAll(kv, "error:");
-    const errorKeys = allKeys.filter(k => k.name.startsWith("error:") && !k.name.includes(":index:"));
-    
-    const stats = {
-      totalErrors: errorKeys.length,
-      errorsByType: {},
-      errorsByPath: {},
-      recentErrors: []
-    };
-
-    // Sample recent errors for stats
-    const sampleSize = Math.min(100, errorKeys.length);
-    for (let i = 0; i < sampleSize; i++) {
-      const raw = await kv.get(errorKeys[i].name);
-      if (!raw) continue;
-      
-      try {
-        const log = JSON.parse(raw);
-        
-        // Count by type
-        const type = log.type || "error";
-        stats.errorsByType[type] = (stats.errorsByType[type] || 0) + 1;
-        
-        // Count by path
-        stats.errorsByPath[log.path] = (stats.errorsByPath[log.path] || 0) + 1;
-        
-        // Collect recent errors
-        if (i < 10) {
-          stats.recentErrors.push({
-            rayId: log.rayId,
-            message: log.message,
-            path: log.path,
-            timestamp: log.timestamp
-          );
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    stats.recentErrors.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    return json({ success: true, result: stats });
+    return json({ success: true, result: { deleted: toDelete.length, totalRemaining: allKeys.length - toDelete.length } });
   }
 
   return json({ error: "Admin route not found" }, 404);
