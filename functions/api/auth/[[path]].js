@@ -347,20 +347,16 @@ export async function onRequest(context) {
     if (!config || !config.clientId || !config.clientSecret) {
       return redirectWithError(url.origin, `Missing OAuth config for ${provider}`);
     }
-
+ 
     const state = crypto.randomUUID();
-    await adapter.put(`auth:state:${state}`, JSON.stringify({ provider, createdAt: Date.now() }));
-
-    const redirect = new URL(config.authUrl);
-    redirect.searchParams.set("client_id", config.clientId);
-    redirect.searchParams.set("redirect_uri", config.redirectUri);
-    redirect.searchParams.set("response_type", "code");
-    redirect.searchParams.set("scope", config.scope);
-    redirect.searchParams.set("state", state);
-
-    return Response.redirect(redirect.toString(), 302);
-  }
-
+    
+    // Layer 2: Set TTL for 10 minutes as backup cleanup
+    await adapter.put(
+      `auth:state:${state}`,
+      JSON.stringify({ provider, createdAt: Date.now() }),
+      { expirationTtl: 600 }  // Auto-delete after 10 minutes
+      }
+    
   if (request.method === "GET" && action === "callback") {
     const config = providerConfig(provider, env, url.origin);
     if (!config) return redirectWithError(url.origin, "Unknown provider");
