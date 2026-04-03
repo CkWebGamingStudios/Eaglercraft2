@@ -75,7 +75,7 @@ export default function AdminPanel() {
       .catch(() => setIsAuthed(false));
   }, [loadAll]);
 
-  // --- ACTIONS ---
+ // --- ACTIONS ---
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -93,9 +93,13 @@ export default function AdminPanel() {
   }
 
   async function handleLogout() {
-    await api("/logout", { method: "POST" });
-    setIsAuthed(false);
-  },
+    try {
+      await api("/logout", { method: "POST" });
+      setIsAuthed(false);
+    } catch (err) {
+      showAlert("Logout failed", "error");
+    }
+  }
 
   async function clearStaleStates() {
     if (!window.confirm("Delete all stale OAuth states?")) return;
@@ -107,7 +111,6 @@ export default function AdminPanel() {
       showAlert(err.message, "error");
     }
   }
-
   async function deleteItem(type, id) {
     if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
     try {
