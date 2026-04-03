@@ -364,7 +364,7 @@ export async function onRequest(context) {
             message: log.message,
             path: log.path,
             timestamp: log.timestamp
-          });
+          );
         }
       } catch {
         // ignore
