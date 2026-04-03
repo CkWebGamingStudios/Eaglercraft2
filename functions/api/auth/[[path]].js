@@ -387,8 +387,10 @@ export async function onRequest(context) {
 
     const stateEntry = await adapter.get(`auth:state:${state}`);
     if (!stateEntry) return redirectWithError(url.origin, "Invalid or expired auth state");
+    
+    // Layer 1: Delete immediately after validation (primary cleanup)
     await adapter.del(`auth:state:${state}`);
-
+   
     try {
       const tokenPayload = await exchangeToken(provider, config, code);
       const accessToken = tokenPayload.access_token;
