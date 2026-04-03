@@ -228,10 +228,12 @@ export default function AdminPanel() {
               <span className="stat-label">🚨 Critical Errors</span>
               <span className="stat-value">{logStats.errorsByType?.error || 0}</span>
             </div>
-            <div className="stat-item stat-slow">
-              <span className="stat-label">⏱️ Slow Requests</span>
-              <span className="stat-value">{logStats.errorsByType?.slow_request || 0}</span>
-            </div>
+            {kvHealth && (
+              <div className={`stat-item ${kvHealth.healthy ? '' : 'stat-error'}`}>
+                <span className="stat-label">🗑️ Stale States</span>
+                <span className="stat-value">{kvHealth.staleStates || 0}</span>
+              </div>
+            )}
           </div>
         )}
 
