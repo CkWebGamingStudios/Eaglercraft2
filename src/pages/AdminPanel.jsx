@@ -323,6 +323,32 @@ export default function AdminPanel() {
                   🗑️ Clear All
                 </button>
               </div>
+              {/* Maintenance Section */}
+          <section className="admin-card">
+            <h2>🧹 Maintenance</h2>
+            <div className="admin-list">
+              <div className="admin-item">
+                <div>
+                  <strong>OAuth State Cleanup</strong>
+                  <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                    Remove abandoned login attempts. States auto-expire in 10 min, so this should show "0 deleted".
+                    {kvHealth && (
+                      <span style={{ display: 'block', marginTop: '0.25rem', color: kvHealth.healthy ? 'var(--success-green)' : 'var(--warning-orange)' }}>
+                        Current: {kvHealth.staleStates} stale {kvHealth.staleStates === 1 ? 'entry' : 'entries'}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={cleanupStaleStates}
+                  disabled={isLoading}
+                >
+                  🗑️ Clean Now
+                </button>
+              </div>
+            </div>
+          </section>
             </div>
             <div className="admin-list admin-logs-list">
               {filteredLogs.length === 0 ? (
