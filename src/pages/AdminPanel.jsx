@@ -45,6 +45,7 @@ export default function AdminPanel() {
       setMods(Array.isArray(m.result) ? m.result : []);
       setLogs(Array.isArray(l.result?.logs) ? l.result.logs : []);
       setLogStats(s.result);
+      setKvHealth(h.result);
     } finally {
       setIsLoading(false);
     }
