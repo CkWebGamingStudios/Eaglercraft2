@@ -103,6 +103,23 @@ export default function AdminPanel() {
     await loadAll();
   }
 
+  async function cleanupStaleStates() {
+    if (!window.confirm("Delete all stale OAuth state entries?\n\n(Safe - they auto-expire in 10 min anyway)")) {
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const result = await api("/cleanup-states", { method: "POST" });
+      alert(`✅ Cleaned up ${result.deleted} stale entries`);
+      await loadAll();
+    } catch (error) {
+      alert(`❌ Cleanup failed: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function deleteLog(rayId) {
     if (!window.confirm("Delete this error log?")) return;
     await api(`/logs/${encodeURIComponent(rayId)}`, { method: "DELETE" });
