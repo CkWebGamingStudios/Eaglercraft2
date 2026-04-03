@@ -436,7 +436,11 @@ export async function onRequest(context) {
       await adapter.put(uid, JSON.stringify(profile));
 
       const sessionToken = `${crypto.randomUUID()}-${Date.now()}`;
-      await adapter.put(`auth:session:${sessionToken}`, JSON.stringify({ uid, createdAt: Date.now() }));
+      await adapter.put(
+        `auth:session:${sessionToken}`,
+        JSON.stringify({ uid, createdAt: Date.now() }),
+        { expirationTtl: 2592000 }  // 30 days
+      );
 
       return new Response(null, {
         status: 302,
