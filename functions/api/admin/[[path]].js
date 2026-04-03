@@ -70,5 +70,55 @@ export async function onRequest(context) {
     return json({ success: true });
   }
 
-  return json({ error: "Admin endpoint not found" }, 404);
+  // POST /api/admin/cleanup-states - Clean up stale OAuth state entries
+  if (request.method === "POST" && action === "cleanup-states") {
+    const kv = usersKv(env);
+    if (!kv) return json({ error: "Users KV not bound" }, 500);
+    
+    // List all state keys
+    const stateKeys = [];
+    let cursor;
+    
+    do {
+      const result = await kv.list({ prefix: "auth:state:", cursor });
+      stateKeys.push(...(result?.keys || []));
+      cursor = result?.list_complete ? undefined : result?.cursor;
+    } while (cursor);
+    
+    // Delete all of them
+    let deleted = 0;
+    for (const key of stateKeys) {
+      await kv.delete(key.name);
+      deleted++;
+    }
+    
+    return json({
+      success: true,
+      message: `Deleted ${deleted} stale OAuth state entries`,
+      deleted
+    });
+  }
+
+  // GET /api/admin/kv-health - Get KV health stats
+  if (request.method === "GET" && action === "kv-health") {
+    const kv = usersKv(env);
+    if (!kv) return json({ error: "Users KV not bound" }, 500);
+    
+    const stateKeys = await kv.list({ prefix: "auth:state:" });
+    const sessionKeys = await kv.list({ prefix: "auth:session:" });
+    const userKeys = await kv.list({ prefix: "auth:user:" });
+    
+    return json({
+      success: true,
+      result: {
+        staleStates: stateKeys.keys.length,
+        activeSessions: sessionKeys.keys.length,
+        totalUsers: userKeys.keys.length,
+        healthy: stateKeys.keys.length === 0,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+
+  return json({ error: "Admin route not found" }, 404);
 }
