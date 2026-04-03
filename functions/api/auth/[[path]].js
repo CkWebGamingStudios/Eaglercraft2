@@ -358,7 +358,12 @@ export async function onRequest(context) {
     }
 
     const state = crypto.randomUUID();
-    await adapter.put(`auth:state:${state}`, JSON.stringify({ provider, createdAt: Date.now() }));
+    // Layer 2: Auto-expire after 10 minutes as backup cleanup
+    await adapter.put(
+      `auth:state:${state}`,
+      JSON.stringify({ provider, createdAt: Date.now() }),
+      { expirationTtl: 600 }
+    );
 
     const redirect = new URL(config.authUrl);
     redirect.searchParams.set("client_id", config.clientId);
