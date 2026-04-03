@@ -29,7 +29,8 @@ export default function AdminPanel() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [logSearch, setLogSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const [kvHealth, setKvHealth] = useState(null);
+  
   async function loadAll() {
     setIsLoading(true);
     try {
