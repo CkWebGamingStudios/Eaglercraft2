@@ -66,12 +66,21 @@ function getKvAdapter(env) {
       if (!response.ok) throw new Error(`KV API get failed: ${response.status}`);
       return response.text();
     },
-    async put(key, value) {
-      const response = await fetch(`${valueBase}/${encodeURIComponent(key)}`, {
+     async put(key, value, options = {}) {
+      const url = `${valueBase}/${encodeURIComponent(key)}`;
+      const headers = { ...authHeaders, "Content-Type": "text/plain" };
+      
+      // Support TTL expiration
+      if (options?.expirationTtl) {
+        headers["Expiration-TTL"] = String(options.expirationTtl);
+      }
+      
+      const response = await fetch(url, {
         method: "PUT",
-        headers: { ...authHeaders, "Content-Type": "text/plain" },
+        headers,
         body: value
       });
+      
       if (!response.ok) throw new Error(`KV API put failed: ${response.status}`);
     },
     async del(key) {
