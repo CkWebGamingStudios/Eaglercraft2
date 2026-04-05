@@ -11,9 +11,7 @@ async function api(path, options = {}) {
     }
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error || "Request failed");
-  }
+  if (!res.ok) throw new Error(data?.error || "Request failed");
   return data;
 }
 
@@ -30,12 +28,11 @@ export default function AdminPanel() {
   const [logSearch, setLogSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [kvHealth, setKvHealth] = useState(null);
-  
+
   async function loadAll() {
     setIsLoading(true);
     try {
-      // FIX: Added 'kv' to the destructuring and the Promise.all array
-      const [u, p, m, l, s, kv] = await Promise.all([
+      const [u, p, m, l, s, kvh] = await Promise.all([
         api("/users"),
         api("/posts"),
         api("/mods"),
@@ -44,196 +41,153 @@ export default function AdminPanel() {
         api("/kv-health").catch(() => ({ result: null }))
       ]);
 
-      setUsers(Array.isArray(u.result) ? u.result : []);
-      setPosts(Array.isArray(p.result) ? p.result : []);
-      setMods(Array.isArray(m.result) ? m.result : []);
-      setLogs(Array.isArray(l.result?.logs) ? l.result.logs : []);
+      setUsers(u.result || []);
+      setPosts(p.result || []); // Fixed: Ensure this matches backend 'result'
+      setMods(m.result || []);   // Fixed: Ensure this matches backend 'result'
+      setLogs(l.result?.logs || []);
       setLogStats(s.result);
-      // FIX: Changed 'h.result' to 'kv.result'
-      setKvHealth(kv?.result);
+      setKvHealth(kvh?.result);
     } catch (err) {
-      console.error("Load failed", err);
+      console.error("Dashboard Load Error:", err);
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    api("/status")
-      .then(() => {
-        setIsAuthed(true);
-        return loadAll();
-      })
-      .catch(() => setIsAuthed(false));
+    api("/status").then(() => {
+      setIsAuthed(true);
+      loadAll();
+    }).catch(() => setIsAuthed(false));
   }, []);
 
-  async function handleLogin(event) {
-    event.preventDefault();
-    setStatus("");
+  async function handleLogin(e) {
+    e.preventDefault();
     setIsLoading(true);
     try {
       await api("/login", { method: "POST", body: JSON.stringify({ password }) });
-      setPassword("");
       setIsAuthed(true);
-      await loadAll();
+      loadAll();
     } catch (error) {
-      setStatus(error.message || "Login failed");
+      setStatus(error.message);
     } finally {
       setIsLoading(false);
     }
   }
-
-  async function handleLogout() {
-    await api("/logout", { method: "POST" });
-    setIsAuthed(false);
-    setUsers([]);
-    setPosts([]);
-    setMods([]);
-    setLogs([]);
-    setLogStats(null);
-  }
-
-  async function terminateUser(uid) {
-    if (!window.confirm("Terminate this user account?")) return;
-    await api(`/users/${encodeURIComponent(uid)}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function deletePost(id) {
-    if (!window.confirm("Delete this post?")) return;
-    await api(`/posts/${encodeURIComponent(id)}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function deleteMod(id) {
-    if (!window.confirm("Delete this mod?")) return;
-    await api(`/mods/${encodeURIComponent(id)}`, { method: "DELETE" });
-    await loadAll();
-  }
-
-  async function cleanupStaleStates() {
-    if (!window.confirm("Delete all stale OAuth state entries?")) return;
-    try {
-      setIsLoading(true);
-      const result = await api("/cleanup-states", { method: "POST" });
-      alert(`✅ Cleaned up ${result.deleted} stale entries`);
-      await loadAll();
-    } catch (error) {
-      alert(`❌ Cleanup failed: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function deleteLog(rayId) {
-    if (!window.confirm("Delete this error log?")) return;
-    await api(`/logs/${encodeURIComponent(rayId)}`, { method: "DELETE" });
-    setSelectedLog(null);
-    await loadAll();
-  }
-
-  async function clearAllLogs() {
-    if (!window.confirm("⚠️ Delete ALL error logs? This cannot be undone!")) return;
-    try {
-      await api("/logs", { method: "DELETE" });
-      await loadAll();
-    } catch (error) {
-      alert("Failed to clear logs: " + error.message);
-    }
-  }
-
-  function viewLogDetails(log) { setSelectedLog(log); }
-  function closeLogModal() { setSelectedLog(null); }
-  function formatDate(ts) { return new Date(ts).toLocaleString(); }
-  function formatDuration(ms) { return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`; }
 
   const filteredLogs = logs.filter(log => {
-    if (!logSearch) return true;
     const s = logSearch.toLowerCase();
-    return log.rayId?.toLowerCase().includes(s) || log.message?.toLowerCase().includes(s) || log.path?.toLowerCase().includes(s);
+    return !logSearch || 
+      log.rayId?.toLowerCase().includes(s) || 
+      log.message?.toLowerCase().includes(s) || 
+      log.path?.toLowerCase().includes(s);
   });
 
-  if (!isAuthed) {
-    return (
-      <section className="admin-page">
-        <div className="admin-shell">
-          <div className="admin-head-row"><h1>🔐 Eaglercraft2 Admin</h1></div>
-          <form onSubmit={handleLogin} className="admin-login-form">
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Admin password" required autoFocus />
-            <button type="submit" disabled={isLoading}>{isLoading ? "Authenticating..." : "Login"}</button>
-          </form>
-          {status && <p className="admin-status">⚠️ {status}</p>}
-        </div>
-      </section>
-    );
-  }
+  if (!isAuthed) return (
+    <div className="admin-login-overlay">
+      <form onSubmit={handleLogin} className="login-card">
+        <h2>Admin Gateway</h2>
+        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Secret Key" />
+        <button disabled={isLoading}>{isLoading ? "Verifying..." : "Access Console"}</button>
+        {status && <p className="error-msg">{status}</p>}
+      </form>
+    </div>
+  );
 
   return (
-    <section className="admin-page">
-      <div className="admin-shell">
-        <div className="admin-head-row">
-          <h1>⚙️ Admin Panel</h1>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={loadAll} disabled={isLoading}>🔄 Refresh</button>
-            <button onClick={handleLogout}>🚪 Logout</button>
-          </div>
+    <div className="admin-dashboard">
+      <header className="dashboard-header">
+        <h1>Eaglercraft2 System Control</h1>
+        <div className="header-actions">
+          <button onClick={loadAll} className="btn-refresh">Refresh Data</button>
+          <button onClick={() => api("/logout", {method: "POST"}).then(() => window.location.reload())}>Logout</button>
         </div>
+      </header>
 
-        {logStats && (
-          <div className="admin-stats-bar">
-            <div className="stat-item"><span>📊 Total Logs</span><strong>{logStats.totalErrors || 0}</strong></div>
-            {kvHealth && (
-              <div className="stat-item"><span>🗑️ Stale States</span><strong>{kvHealth.staleStates || 0}</strong></div>
-            )}
-          </div>
-        )}
-
-        <div className="admin-grid">
-          {/* Users Card */}
-          <section className="admin-card">
-            <h2>👥 Users ({users.length})</h2>
-            <div className="admin-list">
-              {users.map(u => (
-                <div key={u.uid} className="admin-item">
-                  <span>{u.username || u.uid}</span>
-                  <button className="danger" onClick={() => terminateUser(u.uid)}>❌</button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Maintenance Card */}
-          <section className="admin-card">
-            <h2>🧹 Maintenance</h2>
-            <button onClick={cleanupStaleStates} disabled={isLoading}>🗑️ Clean OAuth States</button>
-            <button className="danger" onClick={clearAllLogs} style={{marginTop: '10px'}}>🔥 Wipe All Logs</button>
-          </section>
-
-          {/* Logs Card */}
-          <section className="admin-card admin-logs-card" style={{gridColumn: '1 / -1'}}>
-            <h2>🔍 Error Logs</h2>
-            <input type="text" placeholder="Search logs..." value={logSearch} onChange={e => setLogSearch(e.target.value)} />
-            <div className="admin-logs-list">
-              {filteredLogs.map(log => (
-                <div key={log.rayId} className="admin-log-item" onClick={() => viewLogDetails(log)}>
-                  <strong>{log.rayId}</strong> - {log.path}
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+      <div className="stats-grid">
+        <div className="stat-box"><span>Users</span><strong>{users.length}</strong></div>
+        <div className="stat-box"><span>Posts</span><strong>{posts.length}</strong></div>
+        <div className="stat-box"><span>Mods</span><strong>{mods.length}</strong></div>
+        <div className="stat-box"><span>Health</span><strong>{kvHealth?.healthy ? "Healthy" : "Check States"}</strong></div>
       </div>
 
+      <main className="dashboard-grid">
+        {/* Content Lists */}
+        <section className="content-card">
+          <h3>Recent Posts</h3>
+          <div className="data-list">
+            {posts.map(p => (
+              <div key={p.id} className="data-item">
+                <span>{p.title} <small>by {p.authorName}</small></span>
+                <button className="btn-del">Delete</button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="content-card">
+          <h3>Mods Library</h3>
+          <div className="data-list">
+            {mods.map(m => (
+              <div key={m.id} className="data-item">
+                <span>{m.title} <small>v{m.version || '1.0'}</small></span>
+                <button className="btn-del">Remove</button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Improved Log Search Section */}
+        <section className="logs-section" style={{ gridColumn: "1 / -1" }}>
+          <div className="logs-header">
+            <h3>System Logs</h3>
+            <div className="search-wrapper">
+              <input 
+                type="text" 
+                placeholder="Search logs by RayID, Path, or Error..." 
+                value={logSearch}
+                onChange={e => setLogSearch(e.target.value)}
+              />
+              {logSearch && <button onClick={() => setLogSearch("")}>Clear</button>}
+            </div>
+            <button className="btn-danger-outline" onClick={() => api("/logs", {method: "DELETE"}).then(loadAll)}>Clear All Logs</button>
+          </div>
+          
+          <div className="logs-table-container">
+            <table className="logs-table">
+              <thead>
+                <tr>
+                  <th>RayID</th>
+                  <th>Path</th>
+                  <th>Message</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLogs.map(log => (
+                  <tr key={log.rayId} onClick={() => setSelectedLog(log)}>
+                    <td><code>{log.rayId?.slice(0,8)}...</code></td>
+                    <td>{log.path}</td>
+                    <td className="log-msg-cell">{log.message}</td>
+                    <td>{new Date(log.timestamp).toLocaleTimeString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      {/* Log Details Modal */}
       {selectedLog && (
-        <div className="admin-modal" onClick={closeLogModal}>
-          <div className="admin-modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Log: {selectedLog.rayId}</h3>
+        <div className="modal-backdrop" onClick={() => setSelectedLog(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2>Log Detail: {selectedLog.rayId}</h2>
             <pre>{JSON.stringify(selectedLog, null, 2)}</pre>
-            <button className="danger" onClick={() => deleteLog(selectedLog.rayId)}>Delete Entry</button>
-            <button onClick={closeLogModal}>Close</button>
+            <button onClick={() => setSelectedLog(null)}>Close</button>
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
