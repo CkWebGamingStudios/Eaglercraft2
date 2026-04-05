@@ -12,7 +12,6 @@ function getCookies(request) {
   }));
 }
 
-// Helper to list all keys in a KV namespace
 async function listAll(kv, prefix) {
   const keys = [];
   let cursor;
@@ -30,120 +29,92 @@ export async function onRequest(context) {
   const tail = params.path || [];
   const action = tail[0];
   
-  // MATCHED BINDINGS FROM YOUR SETTINGS
+  // Bindings from your screenshot
   const usersKv = env.ELGE_USERS_KV;
   const forumsKv = env.ELGE_FORUMS;
   const modsKv = env.ELGE_MODDIT;
   const logKv = env.ERROR_LOGS;
 
-  // 1. PUBLIC ADMIN LOGIN
+  // 1. LOGIN
   if (request.method === "POST" && action === "login") {
     const { password } = await request.json();
-    // Using ADMIN_PASS from your "Variables and Secrets" section
     if (password !== env.ADMIN_PASS) return json({ error: "Invalid Password" }, 401);
-    
     const adminToken = crypto.randomUUID();
     await usersKv.put(`admin:session:${adminToken}`, "true", { expirationTtl: 86400 });
-    
     return json({ success: true }, 200, {
       "Set-Cookie": `${ADMIN_COOKIE}=${adminToken}; Path=/; HttpOnly; Max-Age=86400; SameSite=Lax`
     });
   }
 
-  // 2. LOGOUT HANDLER
-  if (request.method === "POST" && action === "logout") {
-    const token = getCookies(request)[ADMIN_COOKIE];
-    if (token) await usersKv.delete(`admin:session:${token}`);
-    return json({ success: true }, 200, { 
-      "Set-Cookie": `${ADMIN_COOKIE}=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax` 
-    });
-  }
-
-  // 3. STATUS CHECK (Must be BEFORE Security Gatekeeper to prevent 401 on check)
+  // 2. STATUS (BEFORE Security Gate)
   if (request.method === "GET" && action === "status") {
     const token = getCookies(request)[ADMIN_COOKIE];
-    if (!token) return json({ authenticated: false }, 200);
-    const session = await usersKv.get(`admin:session:${token}`);
-    if (!session) return json({ authenticated: false }, 200);
-    return json({ success: true, authenticated: true });
+    const session = token ? await usersKv.get(`admin:session:${token}`) : null;
+    return json({ authenticated: !!session });
   }
 
-  // 4. SECURITY GATEKEEPER
+  // 3. SECURITY GATE
   const token = getCookies(request)[ADMIN_COOKIE];
   const isAdmin = await usersKv.get(`admin:session:${token}`);
   if (!isAdmin) return json({ error: "Admin access required" }, 401);
 
-  // 5. PROTECTED ADMIN ROUTES
-
-  // GET /api/admin/users
+  // 4. ROUTES
   if (action === "users" && request.method === "GET") {
     const keys = await listAll(usersKv, "auth:user:");
     const users = [];
-    for (const key of keys) {
-      const u = await usersKv.get(key.name, "json");
-      if (u) users.push(u);
-    }
+    for (const k of keys) { users.push(await usersKv.get(k.name, "json")); }
     return json({ success: true, result: users });
   }
 
-  // GET /api/admin/posts
-  if (action === "posts" && request.method === "GET") {
-    if (!forumsKv) return json({ error: "ELGE_FORUMS binding missing" }, 500);
-    const posts = (await forumsKv.get("posts", "json")) || [];
-    return json({ success: true, result: posts });
-  }
-
-  // GET /api/admin/mods
-  if (action === "mods" && request.method === "GET") {
-    if (!modsKv) return json({ error: "ELGE_MODDIT binding missing" }, 500);
-    const mods = (await modsKv.get("moddit:mods", "json")) || [];
-    return json({ success: true, result: mods });
-  }
-
-  // GET /api/admin/logs
-  if (action === "logs" && request.method === "GET") {
-    if (!logKv) return json({ error: "ERROR_LOGS binding missing" }, 500);
-    
-    if (tail[1] === "stats") {
-      const logs = await logKv.list({ prefix: "error:" });
-      return json({ success: true, result: { totalErrors: logs.keys.length } });
+  if (action === "logs") {
+    // DELETE /api/admin/logs (Clear All) or /api/admin/logs/RAY_ID
+    if (request.method === "DELETE") {
+      if (tail[1]) {
+        await logKv.delete(`error:${tail[1]}`);
+        await logKv.delete(`error:index:${tail[1]}`);
+        return json({ success: true });
+      }
+      const keys = await listAll(logKv, "error:");
+      for (const k of keys) await logKv.delete(k.name);
+      return json({ success: true });
     }
-    
-    const limit = parseInt(url.searchParams.get("limit")) || 50;
-    const indexList = await logKv.list({ prefix: "error:index:", limit });
-    const logs = [];
-    for (const key of indexList.keys) {
-      const rayId = await logKv.get(key.name);
-      const data = await logKv.get(`error:${rayId}`, "json");
-      if (data) logs.push(data);
+    // GET /api/admin/logs
+    if (request.method === "GET") {
+      if (tail[1] === "stats") {
+        const logs = await logKv.list({ prefix: "error:" });
+        return json({ success: true, result: { totalErrors: logs.keys.length } });
+      }
+      const list = await logKv.list({ prefix: "error:index:", limit: 100 });
+      const logs = [];
+      for (const k of list.keys) {
+        const id = await logKv.get(k.name);
+        const data = await logKv.get(`error:${id}`, "json");
+        if (data) logs.push(data);
+      }
+      return json({ success: true, result: { logs } });
     }
-    return json({ success: true, result: { logs } });
   }
 
-  // POST /api/admin/cleanup-states
-  if (request.method === "POST" && action === "cleanup-states") {
+  if (action === "cleanup-states" && request.method === "POST") {
     const keys = await listAll(usersKv, "auth:state:");
-    for (const key of keys) await usersKv.delete(key.name);
+    for (const k of keys) await usersKv.delete(k.name);
     return json({ success: true, deleted: keys.length });
   }
 
-  // GET /api/admin/kv-health
-  if (request.method === "GET" && action === "kv-health") {
+  if (action === "kv-health" && request.method === "GET") {
     const states = await usersKv.list({ prefix: "auth:state:" });
-    const sessions = await usersKv.list({ prefix: "auth:session:" });
-    const users = await usersKv.list({ prefix: "auth:user:" });
-    return json({
-      success: true,
-      result: {
-        staleStates: states.keys.length,
-        activeSessions: sessions.keys.length,
-        totalUsers: users.keys.length,
-        healthy: states.keys.length === 0,
-        timestamp: new Date().toISOString()
-      }
-    });
+    return json({ success: true, result: { staleStates: states.keys.length, healthy: states.keys.length === 0 } });
   }
 
-  // 6. CATCH-ALL 404
-  return json({ error: `Admin route '/api/admin/${action}' not found` }, 404);
+  if (action === "posts" && request.method === "GET") {
+    const posts = await forumsKv.get("posts", "json") || [];
+    return json({ success: true, result: posts });
+  }
+
+  if (action === "mods" && request.method === "GET") {
+    const mods = await modsKv.get("moddit:mods", "json") || [];
+    return json({ success: true, result: mods });
+  }
+
+  return json({ error: `Route ${action} not found` }, 404);
 }
