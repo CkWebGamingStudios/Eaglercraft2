@@ -94,18 +94,53 @@ export async function onRequest(context) {
       return json({ success: true, result: { logs } });
     }
   }
-
-  if (action === "cleanup-states" && request.method === "POST") {
-    const keys = await listAll(usersKv, "auth:state:");
-    for (const k of keys) await usersKv.delete(k.name);
-    return json({ success: true, deleted: keys.length });
+// POST /api/admin/cleanup-states
+if (request.method === "POST" && action === "cleanup-states") {
+  const kv = usersKv(env);  // ✅ Use the helper function
+  if (!kv) return json({ error: "Users KV not bound" }, 500);
+  
+  const stateKeys = [];
+  let cursor;
+  
+  do {
+    const result = await kv.list({ prefix: "auth:state:", cursor });
+    stateKeys.push(...(result?.keys || []));
+    cursor = result?.list_complete ? undefined : result?.cursor;
+  } while (cursor);
+  
+  let deleted = 0;
+  for (const key of stateKeys) {
+    await kv.delete(key.name);
+    deleted++;
   }
-
-  if (action === "kv-health" && request.method === "GET") {
-    const states = await usersKv.list({ prefix: "auth:state:" });
-    return json({ success: true, result: { staleStates: states.keys.length, healthy: states.keys.length === 0 } });
-  }
-
+  
+  return json({
+    success: true,
+    message: `Deleted ${deleted} stale OAuth state entries`,
+    deleted
+  });
+}
+// GET /api/admin/kv-health
+if (request.method === "GET" && action === "kv-health") {
+  const kv = usersKv(env);  // ✅ Use the helper function
+  if (!kv) return json({ error: "Users KV not bound" }, 500);
+  
+  const stateKeys = await kv.list({ prefix: "auth:state:" });
+  const sessionKeys = await kv.list({ prefix: "auth:session:" });
+  const userKeys = await kv.list({ prefix: "auth:user:" });
+  
+  return json({
+    success: true,
+    result: {
+      staleStates: stateKeys.keys.length,
+      activeSessions: sessionKeys.keys.length,
+      totalUsers: userKeys.keys.length,
+      healthy: stateKeys.keys.length === 0,
+      timestamp: new Date().toISOString()
+    }
+  });
+}
+  
   if (action === "posts" && request.method === "GET") {
     const posts = await forumsKv.get("posts", "json") || [];
     return json({ success: true, result: posts });
