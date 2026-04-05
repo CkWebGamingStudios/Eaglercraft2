@@ -12,14 +12,31 @@ function getCookies(request) {
   }));
 }
 
+// Helper to list all keys in a KV namespace
+async function listAll(kv, prefix) {
+  const keys = [];
+  let cursor;
+  do {
+    const result = await kv.list({ prefix, cursor });
+    keys.push(...(result?.keys || []));
+    cursor = result?.list_complete ? undefined : result?.cursor;
+  } while (cursor);
+  return keys;
+}
+
 export async function onRequest(context) {
   const { request, env, params } = context;
   const url = new URL(request.url);
-  const action = params.path?.[0];
+  const tail = params.path || [];
+  const action = tail[0];
+  
+  // KV Bindings - Adjust based on your wrangler.toml
   const kv = env.ELGE_USERS_KV || env.USER_PROFILE_KV;
+  const forumKv = env.FORUMS_KV;
+  const modsKv = env.MODS_KV;
   const logKv = env.ERROR_LOGS || kv;
 
-  // 1. PUBLIC ADMIN LOGIN (Verify Password)
+  // 1. PUBLIC ADMIN LOGIN
   if (request.method === "POST" && action === "login") {
     const { password } = await request.json();
     if (password !== env.ADMIN_PASS) return json({ error: "Invalid Password" }, 401);
@@ -32,93 +49,95 @@ export async function onRequest(context) {
     });
   }
 
-  // 2. SECURITY GATEKEEPER (Verify Admin Token for everything below)
+  // 2. LOGOUT HANDLER
+  if (request.method === "POST" && action === "logout") {
+    const token = getCookies(request)[ADMIN_COOKIE];
+    if (token) await kv.delete(`admin:session:${token}`);
+    return json({ success: true }, 200, { 
+      "Set-Cookie": `${ADMIN_COOKIE}=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax` 
+    });
+  }
+
+  // 3. STATUS CHECK (Must be BEFORE Security Gatekeeper)
+  if (request.method === "GET" && action === "status") {
+    const token = getCookies(request)[ADMIN_COOKIE];
+    if (!token) return json({ authenticated: false }, 200);
+    const session = await kv.get(`admin:session:${token}`);
+    if (!session) return json({ authenticated: false }, 200);
+    return json({ success: true, authenticated: true });
+  }
+
+  // 4. SECURITY GATEKEEPER
   const token = getCookies(request)[ADMIN_COOKIE];
   const isAdmin = await kv.get(`admin:session:${token}`);
   if (!isAdmin) return json({ error: "Admin access required" }, 401);
 
-  // 3. ADMIN ACTIONS
-  
-  // GET /api/admin/users
+  // 5. PROTECTED ADMIN ROUTES
+
+  // USERS
   if (action === "users" && request.method === "GET") {
-    const list = await kv.list({ prefix: "auth:user:" });
+    const keys = await listAll(kv, "auth:user:");
     const users = [];
-    for (const key of list.keys) {
+    for (const key of keys) {
       const u = await kv.get(key.name, "json");
       if (u) users.push(u);
     }
-    return json({ result: users });
+    return json({ success: true, result: users });
   }
 
-  // POST /api/admin/states/clear
-  if (action === "states" && params.path?.[1] === "clear") {
-    const states = await kv.list({ prefix: "auth:state:" });
-    for (const s of states.keys) { await kv.delete(s.name); }
-    return json({ message: `Cleared ${states.keys.length} stale states` });
+  // POSTS
+  if (action === "posts" && request.method === "GET") {
+    if (!forumKv) return json({ error: "Forums KV not bound" }, 500);
+    const posts = (await forumKv.get("posts", "json")) || [];
+    return json({ success: true, result: posts });
   }
 
-  // GET /api/admin/logs/stats
-  if (action === "logs" && params.path?.[1] === "stats") {
-    const logs = await logKv.list({ prefix: "error:" });
-    return json({ result: { totalErrors: logs.keys.length } });
+  // MODS
+  if (action === "mods" && request.method === "GET") {
+    if (!modsKv) return json({ error: "Mods KV not bound" }, 500);
+    const mods = (await modsKv.get("moddit:mods", "json")) || [];
+    return json({ success: true, result: mods });
   }
 
-  // DELETE /api/admin/logs (Clear All)
-  if (action === "logs" && request.method === "DELETE") {
-    const logs = await logKv.list({ prefix: "error:" });
-    for (const l of logs.keys) { await logKv.delete(l.name); }
-    return json({ success: true });
-  }
-
-  // POST /api/admin/cleanup-states - Clean up stale OAuth state entries
-  if (request.method === "POST" && action === "cleanup-states") {
-    const kv = usersKv(env);
-    if (!kv) return json({ error: "Users KV not bound" }, 500);
-    
-    // List all state keys
-    const stateKeys = [];
-    let cursor;
-    
-    do {
-      const result = await kv.list({ prefix: "auth:state:", cursor });
-      stateKeys.push(...(result?.keys || []));
-      cursor = result?.list_complete ? undefined : result?.cursor;
-    } while (cursor);
-    
-    // Delete all of them
-    let deleted = 0;
-    for (const key of stateKeys) {
-      await kv.delete(key.name);
-      deleted++;
+  // LOGS (Detailed List)
+  if (action === "logs" && request.method === "GET") {
+    if (tail[1] === "stats") {
+      const logs = await logKv.list({ prefix: "error:" });
+      return json({ success: true, result: { totalErrors: logs.keys.length } });
     }
     
-    return json({
-      success: true,
-      message: `Deleted ${deleted} stale OAuth state entries`,
-      deleted
-    });
+    const limit = parseInt(url.searchParams.get("limit")) || 50;
+    const indexList = await logKv.list({ prefix: "error:index:", limit });
+    const logs = [];
+    for (const key of indexList.keys) {
+      const rayId = await logKv.get(key.name);
+      const data = await logKv.get(`error:${rayId}`, "json");
+      if (data) logs.push(data);
+    }
+    return json({ success: true, result: { logs } });
   }
 
-  // GET /api/admin/kv-health - Get KV health stats
+  // CLEANUP & HEALTH
+  if (request.method === "POST" && action === "cleanup-states") {
+    const keys = await listAll(kv, "auth:state:");
+    for (const key of keys) await kv.delete(key.name);
+    return json({ success: true, deleted: keys.length });
+  }
+
   if (request.method === "GET" && action === "kv-health") {
-    const kv = usersKv(env);
-    if (!kv) return json({ error: "Users KV not bound" }, 500);
-    
-    const stateKeys = await kv.list({ prefix: "auth:state:" });
-    const sessionKeys = await kv.list({ prefix: "auth:session:" });
-    const userKeys = await kv.list({ prefix: "auth:user:" });
-    
+    const states = await kv.list({ prefix: "auth:state:" });
+    const sessions = await kv.list({ prefix: "auth:session:" });
     return json({
       success: true,
       result: {
-        staleStates: stateKeys.keys.length,
-        activeSessions: sessionKeys.keys.length,
-        totalUsers: userKeys.keys.length,
-        healthy: stateKeys.keys.length === 0,
+        staleStates: states.keys.length,
+        activeSessions: sessions.keys.length,
+        healthy: states.keys.length === 0,
         timestamp: new Date().toISOString()
       }
     });
   }
 
-  return json({ error: "Admin route not found" }, 404);
+  // 6. CATCH-ALL 404 (MUST BE LAST)
+  return json({ error: `Admin route '/api/admin/${action}' not found` }, 404);
 }
