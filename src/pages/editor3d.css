@@ -1,0 +1,98 @@
+.editor-page {
+  min-height: calc(100vh - 90px);
+  padding: 1rem;
+  color: #eef4ff;
+}
+
+.editor-shell {
+  width: min(100%, 1400px);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.editor-header,
+.editor-sidebar,
+.editor-inspector {
+  background: rgba(12, 18, 33, 0.92);
+  border: 1px solid rgba(121, 141, 191, 0.26);
+  border-radius: 14px;
+  padding: 0.8rem;
+}
+
+.editor-header h1,
+.editor-header p {
+  margin: 0;
+}
+
+.editor-header p {
+  margin-top: 0.3rem;
+  color: #b7c5e8;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  gap: 0.75rem;
+  min-height: 72vh;
+}
+
+.editor-canvas {
+  background: #04070f;
+  border: 1px solid rgba(121, 141, 191, 0.26);
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 72vh;
+}
+
+.editor-actions,
+.editor-object-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.editor-sidebar button,
+.editor-inspector button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  font-weight: 700;
+  background: #4f77ea;
+  color: #fff;
+}
+
+.editor-sidebar button.selected {
+  background: #85aa12;
+  color: #0b1200;
+}
+
+.editor-sidebar button.danger {
+  background: #d74b58;
+}
+
+.editor-inspector label {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.45rem;
+  font-size: 0.92rem;
+}
+
+.editor-inspector input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(146, 166, 209, 0.35);
+  background: #0a1222;
+  color: #f2f6ff;
+  padding: 0.45rem 0.6rem;
+}
+
+@media (max-width: 1100px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-canvas {
+    min-height: 54vh;
+  }
+}

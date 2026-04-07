@@ -3,8 +3,23 @@ import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Forums from "./pages/ForumsV2.jsx";
-import Navbar from "./Navbar.jsx"; // Import the new Navbar component
-import { clearCachedProfile, fetchAuthSessionUser, loadCachedProfile, logoutAuthSession, redirectToProviderLogin, saveCachedProfile } from "./utils/authHeader.js";
+import UserSettings from "./pages/UserSettings.jsx";
+import UserProfile from "./pages/UserProfile.jsx";
+import UsersDirectory from "./pages/UsersDirectory.jsx";
+import Docs from "./pages/Docs.jsx";
+import Moddit from "./pages/Moddit.jsx";
+import Play from "./pages/Play.jsx";
+import AdminPanel from "./pages/AdminPanel.jsx";
+import Editor3D from "./pages/Editor3D.jsx";
+import Navbar from "./Navbar.jsx";
+import {
+  clearCachedProfile,
+  fetchAuthSessionUser,
+  loadCachedProfile,
+  logoutAuthSession,
+  redirectToProviderLogin,
+  saveCachedProfile
+} from "./utils/authHeader.js";
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -15,7 +30,6 @@ export default function App() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Animation & Engine Boot
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
     const error = currentUrl.searchParams.get("auth_error");
@@ -27,24 +41,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    import("./elge/splash.js");
-    import("./elge/boot/boot.js");
+    const elgeHub = document.getElementById("elge-hub");
+    if (elgeHub) {
+      elgeHub.remove();
+    }
+  }, [isAuthChecked, profile]);
 
-    const fallbackTimer = setTimeout(() => {
-      const splash = document.getElementById("elge-splash");
-      if (splash) {
-        splash.style.opacity = "0";
-        splash.style.transition = "opacity 300ms ease";
-        setTimeout(() => splash.remove(), 300);
-      }
-    }, 8000);
-
-    return () => {
-      clearTimeout(fallbackTimer);
-    };
-  }, []);
-
-  // Identity Bootstrapping
   useEffect(() => {
     let cancelled = false;
 
@@ -90,33 +92,46 @@ export default function App() {
       clearCachedProfile();
       setProfile(null);
       setIdentityState("Not signed in.");
+      setIsAuthChecked(true);
     }
+  }
+
+  function handleProfileUpdated(nextProfile) {
+    setProfile(nextProfile);
+    setIdentityState(`Signed in as ${nextProfile.username || nextProfile.email || nextProfile.uid}`);
+  }
+
+  let page;
+  if (!isAuthChecked) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else if (!profile) {
+    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
+  } else {
+    page = (
+      <>
+        <Navbar onSignOut={handleSignOut} />
+        <main className="content-layout">
+          <Routes>
+            <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
+            <Route path="/forums" element={<Forums profile={profile} />} />
+            <Route path="/settings" element={<UserSettings profile={profile} onProfileUpdated={handleProfileUpdated} />} />
+            <Route path="/users" element={<UsersDirectory />} />
+            <Route path="/users/:uid" element={<UserProfile />} />
+            <Route path="/docs" element={<Docs />} />
+            <Route path="/moddit" element={<Moddit profile={profile} />} />
+            <Route path="/play" element={<Play />} />
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/editor" element={<Editor3D />} />
+          </Routes>
+        </main>
+      </>
+    );
   }
 
   return (
     <div id="app-root">
-      {isAuthChecked && !profile ? (
-        <Login onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} authError={authError} />
-      ) : (
-        <>
-          <Navbar onSignOut={handleSignOut} />
-          <main className="content-layout">
-            <Routes>
-              <Route path="/" element={<Home profile={profile} onSignOut={handleSignOut} />} />
-              <Route path="/forums" element={<Forums />} />
-            </Routes>
-          </main>
-        </>
-      )}
+      {page}
 
-      <div id="elge-splash">
-        <canvas id="elge-canvas" width="512" height="512" />
-        <div className="elge-text">
-          <div className="elge-title">ELGE</div>
-          <div className="elge-sub">Low-End Game Engine</div>
-          <div id="elge-status" className="elge-status">Initializing...</div>
-        </div>
-      </div>
     </div>
   );
 }
