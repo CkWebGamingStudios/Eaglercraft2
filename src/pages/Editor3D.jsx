@@ -31,10 +31,10 @@ export default function Editor3D() {
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const rendererRef = useRef(null);
-  const controlsRef = useRef(null);
   const frameRef = useRef(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
+  const objectsRef = useRef([]);
 
   const [objects, setObjects] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -44,6 +44,10 @@ export default function Editor3D() {
     () => objects.find((entry) => entry.uuid === selectedId) || null,
     [objects, selectedId]
   );
+
+  useEffect(() => {
+    objectsRef.current = objects;
+  }, [objects]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -67,18 +71,15 @@ export default function Editor3D() {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controlsRef.current = controls;
 
-    const hemi = new THREE.HemisphereLight(0xaec8ff, 0x304050, 0.75);
-    scene.add(hemi);
+    scene.add(new THREE.HemisphereLight(0xaec8ff, 0x304050, 0.75));
 
     const dir = new THREE.DirectionalLight(0xffffff, 1.15);
     dir.position.set(4, 8, 5);
     dir.castShadow = true;
     scene.add(dir);
 
-    const grid = new THREE.GridHelper(24, 24, 0x5470a8, 0x24324f);
-    scene.add(grid);
+    scene.add(new THREE.GridHelper(24, 24, 0x5470a8, 0x24324f));
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(28, 28),
@@ -97,22 +98,22 @@ export default function Editor3D() {
     setEditorStatus("3D editor ready.");
 
     const handleResize = () => {
-      if (!mount || !cameraRef.current || !rendererRef.current) return;
-      const width = mount.clientWidth;
-      const height = mount.clientHeight;
+      if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
+      const width = mountRef.current.clientWidth;
+      const height = mountRef.current.clientHeight;
       cameraRef.current.aspect = width / height;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(width, height);
     };
 
     const handlePointerDown = (event) => {
-      if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
+      if (!cameraRef.current || !rendererRef.current) return;
       const rect = rendererRef.current.domElement.getBoundingClientRect();
       pointerRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointerRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycasterRef.current.setFromCamera(pointerRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(objects, false);
+      const intersects = raycasterRef.current.intersectObjects(objectsRef.current, false);
       if (intersects.length > 0) {
         setSelectedId(intersects[0].object.uuid);
       }
@@ -176,7 +177,6 @@ export default function Editor3D() {
     if (!selectedObject) return;
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return;
-
     selectedObject[mode][axis] = numeric;
     setObjects((prev) => [...prev]);
   }
@@ -222,34 +222,16 @@ export default function Editor3D() {
             {selectedObject && (
               <>
                 <p><strong>{selectedObject.name}</strong></p>
-
-                <label>
-                  Position X
-                  <input type="number" step="0.1" value={selectedObject.position.x.toFixed(2)} onChange={(e) => updateSelectedTransform("x", e.target.value, "position")} />
-                </label>
-                <label>
-                  Position Y
-                  <input type="number" step="0.1" value={selectedObject.position.y.toFixed(2)} onChange={(e) => updateSelectedTransform("y", e.target.value, "position")} />
-                </label>
-                <label>
-                  Position Z
-                  <input type="number" step="0.1" value={selectedObject.position.z.toFixed(2)} onChange={(e) => updateSelectedTransform("z", e.target.value, "position")} />
-                </label>
-
-                <label>
-                  Rotation Y
-                  <input type="number" step="0.1" value={selectedObject.rotation.y.toFixed(2)} onChange={(e) => updateSelectedTransform("y", e.target.value, "rotation")} />
-                </label>
-
-                <label>
-                  Scale
-                  <input type="number" step="0.1" min="0.1" value={selectedObject.scale.x.toFixed(2)} onChange={(e) => {
-                    const v = Math.max(0.1, Number(e.target.value) || 1);
-                    updateSelectedTransform("x", v, "scale");
-                    updateSelectedTransform("y", v, "scale");
-                    updateSelectedTransform("z", v, "scale");
-                  }} />
-                </label>
+                <label>Position X<input type="number" step="0.1" value={selectedObject.position.x.toFixed(2)} onChange={(e) => updateSelectedTransform("x", e.target.value, "position")} /></label>
+                <label>Position Y<input type="number" step="0.1" value={selectedObject.position.y.toFixed(2)} onChange={(e) => updateSelectedTransform("y", e.target.value, "position")} /></label>
+                <label>Position Z<input type="number" step="0.1" value={selectedObject.position.z.toFixed(2)} onChange={(e) => updateSelectedTransform("z", e.target.value, "position")} /></label>
+                <label>Rotation Y<input type="number" step="0.1" value={selectedObject.rotation.y.toFixed(2)} onChange={(e) => updateSelectedTransform("y", e.target.value, "rotation")} /></label>
+                <label>Scale<input type="number" step="0.1" min="0.1" value={selectedObject.scale.x.toFixed(2)} onChange={(e) => {
+                  const v = Math.max(0.1, Number(e.target.value) || 1);
+                  updateSelectedTransform("x", v, "scale");
+                  updateSelectedTransform("y", v, "scale");
+                  updateSelectedTransform("z", v, "scale");
+                }} /></label>
               </>
             )}
           </aside>

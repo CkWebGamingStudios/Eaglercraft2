@@ -1,16 +1,7 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
-import Forums from "./pages/ForumsV2.jsx";
-import UserSettings from "./pages/UserSettings.jsx";
-import UserProfile from "./pages/UserProfile.jsx";
-import UsersDirectory from "./pages/UsersDirectory.jsx";
-import Docs from "./pages/Docs.jsx";
-import Moddit from "./pages/Moddit.jsx";
-import Play from "./pages/Play.jsx";
-import AdminPanel from "./pages/AdminPanel.jsx";
-import Editor3D from "./pages/Editor3D.jsx";
 import Navbar from "./Navbar.jsx";
 import {
   clearCachedProfile,
@@ -20,6 +11,16 @@ import {
   redirectToProviderLogin,
   saveCachedProfile
 } from "./utils/authHeader.js";
+
+const Forums = lazy(() => import("./pages/ForumsV2.jsx"));
+const UserSettings = lazy(() => import("./pages/UserSettings.jsx"));
+const UserProfile = lazy(() => import("./pages/UserProfile.jsx"));
+const UsersDirectory = lazy(() => import("./pages/UsersDirectory.jsx"));
+const Docs = lazy(() => import("./pages/Docs.jsx"));
+const Moddit = lazy(() => import("./pages/Moddit.jsx"));
+const Play = lazy(() => import("./pages/Play.jsx"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
+const Editor3D = lazy(() => import("./pages/Editor3D.jsx"));
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -101,37 +102,31 @@ export default function App() {
     setIdentityState(`Signed in as ${nextProfile.username || nextProfile.email || nextProfile.uid}`);
   }
 
-  let page;
-  if (!isAuthChecked) {
-    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
-  } else if (!profile) {
-    page = <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
-  } else {
-    page = (
-      <>
-        <Navbar onSignOut={handleSignOut} />
-        <main className="content-layout">
-          <Routes>
-            <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
-            <Route path="/forums" element={<Forums profile={profile} />} />
-            <Route path="/settings" element={<UserSettings profile={profile} onProfileUpdated={handleProfileUpdated} />} />
-            <Route path="/users" element={<UsersDirectory />} />
-            <Route path="/users/:uid" element={<UserProfile />} />
-            <Route path="/docs" element={<Docs />} />
-            <Route path="/moddit" element={<Moddit profile={profile} />} />
-            <Route path="/play" element={<Play />} />
-            <Route path="/admin" element={<AdminPanel />} />
-            <Route path="/editor" element={<Editor3D />} />
-          </Routes>
-        </main>
-      </>
-    );
+  const appRoutes = (
+    <Suspense fallback={<div className="content-layout">Loading page…</div>}>
+      <Routes>
+        <Route path="/" element={<Home identityState={identityState} profile={profile} onSignOut={handleSignOut} />} />
+        <Route path="/forums" element={<Forums profile={profile} />} />
+        <Route path="/settings" element={<UserSettings profile={profile} onProfileUpdated={handleProfileUpdated} />} />
+        <Route path="/users" element={<UsersDirectory />} />
+        <Route path="/users/:uid" element={<UserProfile />} />
+        <Route path="/docs" element={<Docs />} />
+        <Route path="/moddit" element={<Moddit profile={profile} />} />
+        <Route path="/play" element={<Play />} />
+        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/editor" element={<Editor3D />} />
+      </Routes>
+    </Suspense>
+  );
+
+  if (!isAuthChecked || !profile) {
+    return <Login authError={authError} onGoogle={() => redirectToProviderLogin("google")} onGithub={() => redirectToProviderLogin("github")} />;
   }
 
   return (
     <div id="app-root">
-      {page}
-
+      <Navbar onSignOut={handleSignOut} />
+      <main className="content-layout">{appRoutes}</main>
     </div>
   );
 }

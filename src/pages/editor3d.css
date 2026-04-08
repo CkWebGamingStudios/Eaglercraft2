@@ -96,3 +96,10 @@
     min-height: 54vh;
   }
 }
+
+
+.editor-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

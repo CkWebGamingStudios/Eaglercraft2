@@ -18,6 +18,7 @@ export default function Navbar({ onSignOut }) {
         <Link to="/admin">Admin</Link>
       </nav>
       <Link to="/play" className="cta">Launch</Link>
+      <Link to="/editor" className="cta ghost">Open Editor</Link>
       <button className="cta ghost" type="button" onClick={onSignOut}>
         Sign Out
       </button>

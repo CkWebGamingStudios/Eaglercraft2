@@ -4,6 +4,7 @@ import "./play.css";
 
 export default function Play() {
   const [bootStatus, setBootStatus] = useState("Booting Minecraft: Web Edition runtime...");
+  const [lastError, setLastError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -16,7 +17,9 @@ export default function Play() {
         }
       } catch (error) {
         if (isMounted) {
-          setBootStatus(`Engine failed to start: ${error?.message || "Unknown error"}`);
+          const message = error?.message || "Unknown error";
+          setLastError(message);
+          setBootStatus(`Engine failed to start: ${message}`);
         }
       }
     }
@@ -39,6 +42,8 @@ export default function Play() {
         <div className="play-canvas-wrap">
           <canvas id="victus-canvas" className="play-canvas" />
         </div>
+
+        {lastError && <div className="play-error">Tip: open /editor to verify 3D rendering and check WebGL support.</div>}
 
         <div className="play-console-wrap">
           <label htmlFor="elge-console-input">Developer Console</label>
