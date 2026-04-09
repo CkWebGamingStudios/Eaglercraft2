@@ -4,7 +4,8 @@ import "./play.css";
 
 export default function Play() {
   const [bootStatus, setBootStatus] = useState("Booting Minecraft: Web Edition runtime...");
-  const [lastError, setLastError] = useState("");
+  const [bootError, setBootError] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -14,12 +15,17 @@ export default function Play() {
         await ELGE.engine.start();
         if (isMounted) {
           setBootStatus("Minecraft: Web Edition is ready. Click the canvas to start playing.");
+          setBootError(null);
         }
       } catch (error) {
         if (isMounted) {
-          const message = error?.message || "Unknown error";
-          setLastError(message);
-          setBootStatus(`Engine failed to start: ${message}`);
+          const errorMsg = error?.message || "Unknown error";
+          setBootStatus("Engine failed to start");
+          setBootError({
+            message: errorMsg,
+            details: error?.stack || "",
+            isWebGLError: errorMsg.includes("WebGL") || errorMsg.includes("context")
+          });
         }
       }
     }
@@ -31,6 +37,28 @@ export default function Play() {
     };
   }, []);
 
+  async function handleRetry() {
+    setIsRetrying(true);
+    setBootError(null);
+    setBootStatus("Retrying engine start...");
+    
+    try {
+      await ELGE.engine.restart();
+      setBootStatus("Minecraft: Web Edition is ready. Click the canvas to start playing.");
+      setBootError(null);
+    } catch (error) {
+      const errorMsg = error?.message || "Unknown error";
+      setBootStatus("Retry failed");
+      setBootError({
+        message: errorMsg,
+        details: error?.stack || "",
+        isWebGLError: errorMsg.includes("WebGL") || errorMsg.includes("context")
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  }
+
   return (
     <section className="play-page">
       <div className="play-shell">
@@ -39,11 +67,58 @@ export default function Play() {
           <p>{bootStatus}</p>
         </header>
 
+        {bootError && (
+          <div className="play-error-panel">
+            <h3>⚠️ Rendering Error</h3>
+            <p className="error-message">{bootError.message}</p>
+            
+            {bootError.isWebGLError && (
+              <div className="troubleshooting">
+                <h4>Troubleshooting Steps:</h4>
+                <ul>
+                  <li><strong>Update Graphics Drivers:</strong> Visit your GPU manufacturer's website (Intel, NVIDIA, AMD)</li>
+                  <li><strong>Try Different Browser:</strong> Firefox or Chrome often have better WebGL support</li>
+                  <li><strong>Enable Hardware Acceleration:</strong> Check browser settings</li>
+                  <li><strong>Check WebGL Support:</strong> Visit <a href="https://get.webgl.org" target="_blank" rel="noreferrer">get.webgl.org</a></li>
+                  <li><strong>System Requirements:</strong> Minimum GPU: Intel HD Graphics 4000 or equivalent</li>
+                </ul>
+                
+                <div className="gpu-note">
+                  <strong>Note:</strong> Intel HD Graphics 3000 and older GPUs are not supported due to DirectX 9 limitations.
+                </div>
+              </div>
+            )}
+            
+            <div className="error-actions">
+              <button 
+                type="button" 
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="retry-button"
+              >
+                {isRetrying ? "Retrying..." : "🔄 Retry"}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => window.location.reload()}
+                className="reload-button"
+              >
+                🔁 Reload Page
+              </button>
+            </div>
+            
+            {bootError.details && (
+              <details className="error-details">
+                <summary>Technical Details</summary>
+                <pre>{bootError.details}</pre>
+              </details>
+            )}
+          </div>
+        )}
+
         <div className="play-canvas-wrap">
           <canvas id="victus-canvas" className="play-canvas" />
         </div>
-
-        {lastError && <div className="play-error">Tip: open /editor to verify 3D rendering and check WebGL support.</div>}
 
         <div className="play-console-wrap">
           <label htmlFor="elge-console-input">Developer Console</label>
