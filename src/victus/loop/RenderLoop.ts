@@ -9,18 +9,24 @@ export class RenderLoop {
         this.ctx = ctx;
     }
 
-    start() {
+    start(): void {
         if (this.running) return;
+        
+        if (!this.ctx.isValid()) {
+            console.error("[RenderLoop] Cannot start - Victus context is in fallback mode");
+            return;
+        }
+        
         this.running = true;
         this.lastTime = performance.now();
         requestAnimationFrame(this.frame);
     }
 
-    stop() {
+    stop(): void {
         this.running = false;
     }
 
-    private frame = (time: number) => {
+    private frame = (time: number): void => {
         if (!this.running) return;
 
         const delta = time - this.lastTime;
@@ -32,12 +38,14 @@ export class RenderLoop {
         requestAnimationFrame(this.frame);
     };
 
-    private tick(delta: number) {
+    private tick(delta: number): void {
         // Logic updates (ELGE will hook here)
     }
 
-    private render() {
-        this.ctx.device.clear();
+    private render(): void {
+        if (this.ctx.device) {
+            this.ctx.device.clear();
+        }
         // Rendering commands will go here
     }
 }
