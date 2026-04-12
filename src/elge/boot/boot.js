@@ -48,7 +48,7 @@ const browserRec = RendererFactory.getBrowserRecommendation();
     }
     
     // Initialize mod loader
-    await ModLoader.install('https://example.com/mods/core-mod/mod.json');
+    await ModLoader.install('./modding/temp/mod.json');
     
     // Start runtime
     startRuntime({ context, capabilities });
