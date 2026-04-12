@@ -11,7 +11,7 @@ import "../boot/boot.js";
 import "../boot/dispatcher.js";
 
 /* FORCE LOADER */
-import { Loader } from '/src/elge/master/loader.js';
+import { Loader } from './loader.js';
 
 /* FORCE RUNTIME (SAFE SIDE EFFECT) */
 import "../runtime/engine.js";
@@ -32,7 +32,10 @@ export const Router = {
 
     Loader.show(`Loading ${pageName}`);
 
-    history.pushState({}, "", path);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    setTimeout(() => {
+      history.pushState({}, "", path);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      Loader.hide();
+    }, 100);
   }
 };
