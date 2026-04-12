@@ -4,16 +4,14 @@ export class WebGL2Renderer implements BaseRenderer {
     private gl: WebGL2RenderingContext;
 
     constructor(canvas: HTMLCanvasElement) {
-        const ctx = canvas.getContext('webgl2', { antialias: true });
-        if (!ctx) throw new Error("WebGL2 not supported on this device");
+        const ctx = canvas.getContext('webgl2');
+        if (!ctx) throw new Error("WebGL2 not supported");
         this.gl = ctx;
     }
 
-    getType(): string { return "WebGL2"; }
-
     clear(): void {
-        this.gl.clearBufferfv(this.gl.COLOR, 0, [0, 0, 0, 1]);
-        this.gl.clearBufferfi(this.gl.DEPTH_STENCIL, 0, 1.0, 0);
+        this.gl.clearColor(0, 0, 0, 1);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     }
 
     setViewport(x: number, y: number, w: number, h: number): void {
