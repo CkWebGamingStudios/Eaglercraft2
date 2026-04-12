@@ -8,6 +8,8 @@ import { dispatch } from "./dispatcher.js";
 import { startRuntime } from "../runtime/runtime.js";
 import { advancementEvent } from "../advancements/events/advancementEvents.js";
 
+import { ModLoader } from "./modding/ModLoader";
+import { RendererFactory } from "../victus/core/RendererFactory";
 
 advancementEvent("elge:engine_started");
 
@@ -38,4 +40,16 @@ advancementEvent("elge:engine_started");
     console.error("[ELGE BOOT FAILURE]", err);
     setLoaderStatus("Fatal error — cannot start");
   }
-})();
+const browserRec = RendererFactory.getBrowserRecommendation();
+    if (browserRec.recommended !== browserRec.current) {
+        console.warn(`[ELGE] Recommended browser: ${browserRec.recommended}`);
+        console.warn(`[ELGE] Reason: ${browserRec.reason}`);
+        // Optionally show UI warning
+    }
+    
+    // Initialize mod loader
+    await ModLoader.install('https://example.com/mods/core-mod/mod.json');
+    
+    // Start runtime
+    startRuntime({ context, capabilities });
+}
