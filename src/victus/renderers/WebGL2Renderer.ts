@@ -1,5 +1,5 @@
-import { BaseRenderer } from '../core/BaseRenderer';
-import { Vec3, Color } from '../math/Vec3';
+import { BaseRenderer } from '../core/BaseRenderer.ts';
+import { Vec3, Color } from '../math/Vec3.ts';
 
 export class WebGL2Renderer implements BaseRenderer {
     private gl: WebGL2RenderingContext;
