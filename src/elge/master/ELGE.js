@@ -23,47 +23,46 @@ export const ELGE = {
 
     /**
      * Starts the engine and initializes the renderer
-     * @param {HTMLCanvasElement} canvas - Passed from Play.jsx
      */
     async start(canvas) {
-      // 1. Show the global loader
+      if (!canvas) {
+        throw new Error("ELGE: Canvas element is missing.");
+      }
+
       Loader.show("Starting engine");
 
       try {
-        // 2. Initialize the Hardware Context using the Factory
-        // This is what prevents the "b.show is not a function" error
+        // 1. Initialize the Hardware Context using the Factory
         this.renderer = RendererFactory.createOptimal(canvas);
 
         if (!this.renderer) {
           throw new Error("Failed to initialize a compatible Victus renderer.");
         }
 
-        // 3. Start the core engine and pass the renderer to it
+        // 2. Start the core engine and pass the renderer to it
         await Engine.start(this.renderer);
         
-        console.log(`ELGE: Engine live [Mode: ${this.renderer.getType()}]`);
+        // 3. Safety Check: Only log type if the function exists
+        // This prevents the "getType is not a function" crash
+        const rendererType = (typeof this.renderer.getType === 'function') 
+          ? this.renderer.getType() 
+          : "Unknown Mode";
+          
+        console.log(`ELGE: Engine live [Mode: ${rendererType}]`);
         
-        // 4. Hide loader once ready
         Loader.hide();
       } catch (err) {
         Loader.hide();
         console.error("ELGE Fatal Boot Error:", err);
-        throw err; // Re-throw to show error panel in Play.jsx
+        throw err; // This allows Play.jsx to show the error screen you're seeing
       }
     },
 
-    /**
-     * Shuts down the engine loop
-     */
     stop() {
-      Engine.stop();
+      if (Engine.stop) Engine.stop();
       this.renderer = null;
     },
 
-    /**
-     * Full engine restart sequence
-     * @param {HTMLCanvasElement} canvas
-     */
     async restart(canvas) {
       this.stop();
       await this.start(canvas);
@@ -71,9 +70,6 @@ export const ELGE = {
   },
 
   redirect: {
-    /**
-     * Standard page navigation via the ELGE Router
-     */
     page(name) {
       Router.go(name);
     }
