@@ -1,0 +1,21 @@
+{
+    "id": "example-block-mod",
+    "name": "Example Block Mod",
+    "version": "1.0.0",
+    "author": "You",
+    "description": "Adds custom blocks",
+    "elge_version": ">=0.1.0",
+    "dependencies": {
+        "required": [],
+        "optional": []
+    },
+    "entry": "index.js",
+    "permissions": [
+        "blocks.register",
+        "ui.notify"
+    ],
+    "hooks": {
+        "init": "onInit",
+        "tick": "onTick"
+    }
+}
