@@ -1,4 +1,4 @@
-import { BaseRenderer } from '../core/BaseRenderer';
+import { BaseRenderer } from '../core/BaseRenderer.ts';
 
 export class WebGL1Renderer implements BaseRenderer {
     private gl: WebGLRenderingContext;
