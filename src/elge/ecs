@@ -1,0 +1,5 @@
+// src/elge/ecs/
+- Entity registry
+- Component system
+- System scheduler
+- Query/filtering
