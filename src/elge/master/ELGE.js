@@ -10,12 +10,11 @@ import "./router.js";
 import { Loader } from "./loader.js";
 import { Router } from "./router.js";
 
-// Import Boot & Runtime logic
 import "../boot/boot.js";
 import "../boot/dispatcher.js";
 import { Engine } from "../runtime/engine.js";
 
-// Import the Victus Rendering System
+// Link to the Victus Rendering System
 import { RendererFactory } from "../../victus/core/RendererFactory";
 
 export const ELGE = {
@@ -23,35 +22,38 @@ export const ELGE = {
     renderer: null,
 
     /**
-     * Starts the engine. 
-     * Now accepts a canvas element to initialize the Victus Renderer.
+     * Starts the engine and initializes the renderer
+     * @param {HTMLCanvasElement} canvas - Passed from Play.jsx
      */
     async start(canvas) {
-      Loader.show("Starting engine...");
-      
+      // 1. Show the global loader
+      Loader.show("Starting engine");
+
       try {
-        // 1. Initialize the Hardware Context
+        // 2. Initialize the Hardware Context using the Factory
+        // This is what prevents the "b.show is not a function" error
         this.renderer = RendererFactory.createOptimal(canvas);
-        
+
         if (!this.renderer) {
-          throw new Error("ELGE: Hardware initialization failed. No compatible renderer found.");
+          throw new Error("Failed to initialize a compatible Victus renderer.");
         }
 
-        // 2. Pass the renderer to the core Engine
+        // 3. Start the core engine and pass the renderer to it
         await Engine.start(this.renderer);
         
         console.log(`ELGE: Engine live [Mode: ${this.renderer.getType()}]`);
+        
+        // 4. Hide loader once ready
         Loader.hide();
-      } catch (error) {
+      } catch (err) {
         Loader.hide();
-        console.error("ELGE Boot Failure:", error);
-        // Throwing allows Play.jsx to catch the error and show the UI
-        throw error; 
+        console.error("ELGE Fatal Boot Error:", err);
+        throw err; // Re-throw to show error panel in Play.jsx
       }
     },
 
     /**
-     * Shuts down the engine and clears the renderer reference
+     * Shuts down the engine loop
      */
     stop() {
       Engine.stop();
@@ -59,7 +61,8 @@ export const ELGE = {
     },
 
     /**
-     * Restarts the engine (useful for GPU context recovery)
+     * Full engine restart sequence
+     * @param {HTMLCanvasElement} canvas
      */
     async restart(canvas) {
       this.stop();
@@ -69,7 +72,7 @@ export const ELGE = {
 
   redirect: {
     /**
-     * Navigation helper linked to the internal Router
+     * Standard page navigation via the ELGE Router
      */
     page(name) {
       Router.go(name);
