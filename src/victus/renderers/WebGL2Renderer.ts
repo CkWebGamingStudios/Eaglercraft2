@@ -1,22 +1,19 @@
 import { BaseRenderer } from '../core/BaseRenderer.ts';
-import { Vec3, Color } from '../math/Vec3.ts';
 
 export class WebGL2Renderer implements BaseRenderer {
     private gl: WebGL2RenderingContext;
 
     constructor(canvas: HTMLCanvasElement) {
         const ctx = canvas.getContext('webgl2', { antialias: true });
-        if (!ctx) throw new Error("WebGL2 not supported");
+        if (!ctx) throw new Error("WebGL2 not supported on this device");
         this.gl = ctx;
     }
 
-    clear(): void {
-        this.gl.clearColor(0, 0, 0, 1);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-    }
+    getType(): string { return "WebGL2"; }
 
-    drawTriangle(v1: Vec3, v2: Vec3, v3: Vec3, color: Color): void {
-        // High-performance VAO-based drawing logic would go here
+    clear(): void {
+        this.gl.clearBufferfv(this.gl.COLOR, 0, [0, 0, 0, 1]);
+        this.gl.clearBufferfi(this.gl.DEPTH_STENCIL, 0, 1.0, 0);
     }
 
     setViewport(x: number, y: number, w: number, h: number): void {
