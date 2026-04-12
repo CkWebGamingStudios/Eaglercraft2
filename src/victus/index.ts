@@ -1,20 +1,18 @@
-import { VictusContext } from "./context/VictusContext";
-import { RenderLoop } from "./loop/RenderLoop";
+// src/victus/index.ts
+import { RendererFactory } from "./core/RendererFactory";
+import { BaseRenderer } from "./core/BaseRenderer";
 
 export class Victus {
-    context: VictusContext;
-    loop: RenderLoop;
-
+    renderer: BaseRenderer;
+    
     constructor(canvas: HTMLCanvasElement) {
-        this.context = new VictusContext(canvas);
-        this.loop = new RenderLoop(this.context);
+        // Auto-detect best renderer
+        this.renderer = RendererFactory.createOptimal(canvas);
+        
+        console.log(`[Victus] Using ${this.renderer.getType()} renderer`);
     }
-
+    
     start() {
-        this.loop.start();
-    }
-
-    stop() {
-        this.loop.stop();
+        // Rendering loop now uses BaseRenderer interface
     }
 }
