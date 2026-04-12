@@ -38,13 +38,16 @@ export class TickScheduler {
 
                 const inputs = this.inputQueue.filter(i => i.tick === currentTick);
                 this.inputQueue = this.inputQueue.filter(i => i.tick > currentTick);
-
+                await ModLoader.executeHook('beforeTick', currentTick, inputs);
+                
                 if (this.tickHandler) {
                     this.tickHandler(currentTick, inputs);
                 }
             }
 
-            if (this.renderHandler) {
+            await ModLoader.executeHook('afterTick', currentTick);
+            }
+             if (this.renderHandler) {
                 this.renderHandler(this.clock.getAlpha());
             }
 
