@@ -6,7 +6,7 @@ import { dispatch } from "./dispatcher.js";
 import { startRuntime } from "../runtime/runtime.js";
 import { advancementEvent } from "../advancements/events/advancementEvents.js";
 import { ModLoader } from "./modding/ModLoader.ts";
-import { RendererFactory } from "../victus/core/RendererFactory.ts";
+import { RendererFactory } from "../../victus/core/RendererFactory.ts";
 
 advancementEvent("elge:engine_started");
 
