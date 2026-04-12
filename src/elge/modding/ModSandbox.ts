@@ -1,40 +1,53 @@
-// src/elge/modding/ModSandbox.ts
-
-// Define the interface for your API if not already defined elsewhere
-interface ELGE_ModAPI {
-    [key: string]: any;
-}
+import { ELGE_ModAPI } from './ModAPI.ts';
 
 export class ModSandbox {
-    // Properties must be defined at the class level, not inside methods
-    private allowedAPIs: string[] = [
-        'console', 'Math', 'Date', 'JSON', 'Array', 'Object'
-    ];
-
-    private blockedAPIs: string[] = [
-        'fetch', 'XMLHttpRequest', 'localStorage', 'indexedDB'
+    private allowedGlobals = [
+        'Math', 'Date', 'JSON', 'Array', 'Object', 'String', 
+        'Number', 'Boolean', 'RegExp', 'console', 'setTimeout'
     ];
 
     /**
-     * Executes mod code in a semi-isolated context.
-     * Note: True isolation in JS usually requires a Proxy or a Worker.
+     * Executes mod code in a restricted scope
+     * @param modId The unique ID of the mod
+     * @param code The raw JavaScript code of the mod
+     * @param api The ModAPI instance to provide to the mod
      */
-    execute(modCode: string, api: ELGE_ModAPI): void {
+    async execute(modId: string, code: string, api: ELGE_ModAPI): Promise<void> {
+        console.log(`[ModSandbox] Virtualizing environment for: ${modId}`);
+
+        // Create a restricted proxy for the window/global object
+        const sandboxProxy = new Proxy(window, {
+            get: (target, prop: string) => {
+                // Return the API if requested
+                if (prop === 'elge') return api;
+                
+                // Allow specific safe globals
+                if (this.allowedGlobals.includes(prop)) {
+                    return (target as any)[prop];
+                }
+
+                // Block everything else (document, localStorage, cookies, etc)
+                console.warn(`[ModSandbox] Security Block: Mod "${modId}" tried to access "${prop}"`);
+                return undefined;
+            },
+            has: (target, prop: string) => {
+                return prop === 'elge' || this.allowedGlobals.includes(prop);
+            }
+        });
+
         try {
-            // Create a wrapper function that passes your API as a local variable
-            // This prevents the mod from easily accessing the global 'window' or 'global' object
-            const runner = new Function('api', 'console', ...this.blockedAPIs, `
+            // Use a Function constructor to create a scoped execution context
+            // 'elge' becomes the local variable mods use to interact with the engine
+            const script = new Function('elge', 'window', 'document', 'globalThis', `
                 "use strict";
-                ${modCode}
+                ${code}
             `);
 
-            // Execute the code, passing your API and nulling out blocked globals
-            // We pass 'null' for blocked APIs to overshadow the global versions
-            const blockedValues = this.blockedAPIs.map(() => null);
-            runner(api, console, ...blockedValues);
-
+            // Execute with the proxy as the global context
+            script.bind(sandboxProxy)(api, sandboxProxy, undefined, sandboxProxy);
+            
         } catch (error) {
-            console.error("Mod Execution Error:", error);
+            console.error(`[ModSandbox] Runtime error in mod "${modId}":`, error);
         }
     }
 }
