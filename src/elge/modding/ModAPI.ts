@@ -1,6 +1,6 @@
 // src/elge/modding/ModAPI.ts
 
-import { Vec3 } from "../../core/math/Vec3";
+import { Vec3 } from "../../Victus/math/Vec3";
 
 /**
  * Complete Modding API exposed to mods
