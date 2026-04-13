@@ -8,27 +8,51 @@ export default function Play() {
   const [bootError, setBootError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
+  // ✅ ADD: store minecraft instance
+  const minecraftRef = useRef(null);
+
   const startEngine = async () => {
     try {
-      // Ensure the canvas is available in the DOM
       if (!canvasRef.current) {
         throw new Error("Canvas render target not found in DOM.");
       }
 
-      // Pass the actual canvas element to the ELGE start method
-      // This allows RendererFactory to initialize the correct context (WebGL1/2/Software)
+      // ✅ KEEP: your ELGE engine (unchanged)
       await ELGE.engine.start(canvasRef.current);
+
+      // ✅ ADD: Load external Minecraft Web Edition properly
+      const module = await import(
+        "https://ckwebgamingstudios.github.io/Minecraft-Web-Edition/index.js"
+      );
+
+      const MinecraftGame =
+        module.MinecraftGame || window.MinecraftGame;
+
+      if (!MinecraftGame) {
+        throw new Error("MinecraftGame export not found in external index.js");
+      }
+
+      // ✅ Prevent duplicate instances
+      if (!minecraftRef.current) {
+        const game = new MinecraftGame(canvasRef.current);
+        game.start();
+
+        minecraftRef.current = game;
+
+        // Optional debug
+        window.__MINECRAFT__ = game;
+      }
 
       setBootStatus("Minecraft: Web Edition is ready. Click the canvas to start playing.");
       setBootError(null);
+
     } catch (error) {
       const errorMsg = error?.message || "Unknown error";
       setBootStatus("Engine failed to start");
-      
+
       setBootError({
         message: errorMsg,
         details: error?.stack || "",
-        // Detect if the error is GPU/Driver related
         isWebGLError: /WebGL|context|graphics|I.show/i.test(errorMsg)
       });
     }
@@ -36,10 +60,15 @@ export default function Play() {
 
   useEffect(() => {
     startEngine();
-    
-    // Cleanup logic to stop engine loops when navigating away
+
     return () => {
+      // ✅ KEEP: your ELGE cleanup
       if (ELGE.engine.stop) ELGE.engine.stop();
+
+      // ✅ ADD: stop minecraft safely
+      if (minecraftRef.current?.stop) {
+        minecraftRef.current.stop();
+      }
     };
   }, []);
 
@@ -47,14 +76,23 @@ export default function Play() {
     setIsRetrying(true);
     setBootError(null);
     setBootStatus("Attempting to re-initialize hardware context...");
-    
+
     try {
-      // Use restart logic if available, otherwise fallback to start
+      // ✅ ADD: reset minecraft instance before retry
+      if (minecraftRef.current?.stop) {
+        minecraftRef.current.stop();
+        minecraftRef.current = null;
+      }
+
       if (ELGE.engine.restart) {
         await ELGE.engine.restart(canvasRef.current);
       } else {
         await startEngine();
       }
+
+      // ✅ IMPORTANT: re-load Minecraft after restart
+      await startEngine();
+
     } finally {
       setIsRetrying(false);
     }
@@ -76,21 +114,21 @@ export default function Play() {
               <h3>⚠️ {bootError.isWebGLError ? "Graphics Initialization Failed" : "Engine Error"}</h3>
               <p className="error-message">{bootError.message}</p>
             </div>
-            
+
             {bootError.isWebGLError && (
               <div className="troubleshooting">
                 <h4>Recommended Fixes:</h4>
                 <ul>
-                  <li><strong>Browser Compatibility:</strong> If using Chrome, try <strong>Firefox</strong>. It has superior legacy support for Intel HD 3000.</li>
-                  <li><strong>Drivers:</strong> Ensure your Intel Graphics drivers are updated to the latest available version.</li>
-                  <li><strong>Hardware Acceleration:</strong> Verify that "Use hardware acceleration when available" is ON in browser settings.</li>
+                  <li><strong>Browser Compatibility:</strong> If using Chrome, try <strong>Firefox</strong>.</li>
+                  <li><strong>Drivers:</strong> Ensure your Intel Graphics drivers are updated.</li>
+                  <li><strong>Hardware Acceleration:</strong> Enable it in browser settings.</li>
                 </ul>
                 <div className="gpu-note">
-                  <strong>Hardware Note:</strong> Detected legacy Intel HD 3000 series. If WebGL fails, the engine will attempt to switch to <em>Victus Software Rendering</em>.
+                  <strong>Hardware Note:</strong> Legacy GPU detected. Engine may fallback to software rendering.
                 </div>
               </div>
             )}
-            
+
             <div className="error-actions">
               <button onClick={handleRetry} disabled={isRetrying} className="retry-button">
                 {isRetrying ? "Initializing..." : "🔄 Retry Connection"}
@@ -99,7 +137,7 @@ export default function Play() {
                 🔁 Hard Reload
               </button>
             </div>
-            
+
             {bootError.details && (
               <details className="error-details">
                 <summary>Technical Trace</summary>
@@ -110,11 +148,10 @@ export default function Play() {
         )}
 
         <div className="play-canvas-wrap">
-          {/* Ref is assigned here so startEngine can access the element directly */}
-          <canvas 
-            id="victus-canvas" 
-            ref={canvasRef} 
-            className="play-canvas" 
+          <canvas
+            id="victus-canvas"
+            ref={canvasRef}
+            className="play-canvas"
           />
         </div>
 
