@@ -1,12 +1,13 @@
 import { scanContext } from "./contextScanner.js";
 import { resolveIntent } from "./intentResolver.js";
 import { scanCapabilities } from "./capabilityScanner.js";
+
 import { setLoaderStatus } from "../ui/loader.js";
 import { dispatch } from "./dispatcher.js";
+
 import { startRuntime } from "../runtime/runtime.js";
 import { advancementEvent } from "../advancements/events/advancementEvents.js";
-import { ModLoader } from "../modding/ModLoader.ts";
-import { RendererFactory } from "../../victus/core/RendererFactory.ts";
+import { logBrowserRecommendation } from "../utils/BrowserDetection.js";
 
 advancementEvent("elge:engine_started");
 
@@ -19,32 +20,25 @@ advancementEvent("elge:engine_started");
     // STEP 2: Capability detection
     setLoaderStatus("Detecting system capabilities");
     const capabilities = scanCapabilities();
+    
+    // STEP 2.5: Check browser compatibility (non-blocking)
+    logBrowserRecommendation();
 
-    // STEP 3: Resolve intent
+    // STEP 3: Resolve intent (where user is going)
     setLoaderStatus("Resolving destination");
     const intent = resolveIntent(context, capabilities);
 
-    // STEP 4: Browser Check
-    const browserRec = RendererFactory.getBrowserRecommendation();
-    if (browserRec.recommended !== browserRec.current) {
-        console.warn(`[ELGE] Recommended browser: ${browserRec.recommended}`);
-        console.warn(`[ELGE] Reason: ${browserRec.reason}`);
-    }
-
-    // STEP 5: Prepare runtime / module
+    // STEP 4: Prepare runtime / module
     setLoaderStatus("Preparing runtime");
     await dispatch(intent, capabilities);
 
-    // STEP 6: Initialize mod loader
-    setLoaderStatus("Loading mods");
-    await ModLoader.install('./modding/temp/mod.json');
-
-    // STEP 7: Start engine runtime
+    // STEP 5: Start engine runtime
     setLoaderStatus("Starting engine");
     startRuntime({ context, capabilities });
 
+    console.log('[ELGE BOOT] Success');
   } catch (err) {
     console.error("[ELGE BOOT FAILURE]", err);
     setLoaderStatus("Fatal error — cannot start");
   }
-})(); // Added missing closing parenthesis to invoke the IIFE
+})();
