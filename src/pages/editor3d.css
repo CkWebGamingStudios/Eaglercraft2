@@ -95,7 +95,26 @@
   .editor-canvas {
     min-height: 54vh;
   }
+
+  .editor-scripting {
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  padding: 10px;
+  border-left: 1px solid #333;
 }
+
+.code-input {
+  flex-grow: 1;
+  background: #000;
+  color: #0f0;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  resize: none;
+  border: 1px solid #444;
+  padding: 10px;
+}
+
 
 
 .editor-canvas canvas {
@@ -103,3 +122,4 @@
   width: 100% !important;
   height: 100% !important;
 }
+  }
