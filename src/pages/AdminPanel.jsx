@@ -24,16 +24,19 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [posts, setPosts] = useState([]);
   const [mods, setMods] = useState([]);
+  const [logs, setLogs] = useState([]);
 
   async function loadAll() {
-    const [u, p, m] = await Promise.all([
+    const [u, p, m, l] = await Promise.all([
       api("/users"),
       api("/posts"),
-      api("/mods")
+      api("/mods"),
+      api("/logs")
     ]);
     setUsers(Array.isArray(u.result) ? u.result : []);
     setPosts(Array.isArray(p.result) ? p.result : []);
     setMods(Array.isArray(m.result) ? m.result : []);
+    setLogs(Array.isArray(l.result) ? l.result : []);
   }
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function AdminPanel() {
     setUsers([]);
     setPosts([]);
     setMods([]);
+    setLogs([]);
   }
 
   async function terminateUser(uid) {
@@ -81,6 +85,12 @@ export default function AdminPanel() {
   async function deleteMod(id) {
     if (!window.confirm("Delete this mod?")) return;
     await api(`/mods/${encodeURIComponent(id)}`, { method: "DELETE" });
+    await loadAll();
+  }
+
+  async function clearLog(id) {
+    if (!window.confirm("Delete this log entry?")) return;
+    await api(`/logs/${encodeURIComponent(id)}`, { method: "DELETE" });
     await loadAll();
   }
 
@@ -150,6 +160,20 @@ export default function AdminPanel() {
                   <p>{mod.authorName || "Unknown"}</p>
                 </div>
                 <button type="button" className="danger" onClick={() => deleteMod(mod.id)}>Delete</button>
+              </div>
+            ))}
+          </section>
+
+          <section className="admin-card">
+            <h2>Log Explorer ({logs.length})</h2>
+            {logs.map((entry) => (
+              <div key={entry.id} className="admin-item">
+                <div>
+                  <strong>{entry.type || "event"}</strong>
+                  <p>{entry.message || "No details"}</p>
+                  <p>{entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ""}</p>
+                </div>
+                <button type="button" className="danger" onClick={() => clearLog(entry.id)}>Delete</button>
               </div>
             ))}
           </section>

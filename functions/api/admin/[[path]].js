@@ -59,6 +59,14 @@ async function listAll(kv, prefix) {
   return out;
 }
 
+async function appendAdminLog(kv, type, message, meta = {}) {
+  if (!kv?.put) return null;
+  const id = `log:${Date.now()}:${crypto.randomUUID()}`;
+  const entry = { id, type, message, meta, createdAt: new Date().toISOString() };
+  await kv.put(id, JSON.stringify(entry));
+  return entry;
+}
+
 async function requireAdmin(request, env) {
   const kv = usersKv(env);
   if (!kv) return { ok: false, response: json({ error: "Users KV not bound" }, 500) };
@@ -181,6 +189,7 @@ export async function onRequest(context) {
       }
     }
 
+    await appendAdminLog(usersStore, "user:delete", "Admin terminated a user", { uid });
     return json({ success: true });
   }
 
@@ -198,6 +207,7 @@ export async function onRequest(context) {
     const next = posts.filter((entry) => entry.id !== tail[1]);
     if (next.length === posts.length) return json({ error: "Post not found" }, 404);
     await kv.put("posts", JSON.stringify(next));
+    await appendAdminLog(usersStore, "post:delete", "Admin deleted a post", { postId: tail[1] });
     return json({ success: true });
   }
 
@@ -215,6 +225,28 @@ export async function onRequest(context) {
     const next = mods.filter((entry) => entry.id !== tail[1]);
     if (next.length === mods.length) return json({ error: "Mod not found" }, 404);
     await kv.put("moddit:mods", JSON.stringify(next));
+    await appendAdminLog(usersStore, "mod:delete", "Admin deleted a mod", { modId: tail[1] });
+    return json({ success: true });
+  }
+
+  if (request.method === "GET" && action === "logs") {
+    const keys = await listAll(usersStore, "log:");
+    const result = [];
+    for (const key of keys) {
+      const raw = await usersStore.get(key.name);
+      if (!raw) continue;
+      try {
+        result.push(JSON.parse(raw));
+      } catch {
+        // ignore invalid entries
+      }
+    }
+    result.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    return json({ success: true, result: result.slice(0, 250) });
+  }
+
+  if (request.method === "DELETE" && action === "logs" && tail[1]) {
+    await usersStore.delete(tail[1]);
     return json({ success: true });
   }
 
