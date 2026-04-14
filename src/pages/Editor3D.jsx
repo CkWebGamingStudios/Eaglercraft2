@@ -1,112 +1,130 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Editor from '@monaco-editor/react'; // Assuming Monaco usage
+import Editor from '@monaco-editor/react';
+import * as THREE from 'three';
 
 const Editor3d = () => {
-    // 1. FILE SYSTEM STATE: Fixes the "all files share code" bug
+    // FIX: State is an object where each key is a unique file
     const [files, setFiles] = useState({
-        'player.js': '// Player Controller\nexport class Player {\n  constructor() {\n    this.position = { x: 0, y: 5, z: 0 };\n  }\n}',
-        'world.js': '// World Logic\nconsole.log("World Initialized");',
-        'game.js': '// Game Entry'
+        'player.js': `export class Player {\n  constructor() {\n    this.position = { x: 0, y: 2, z: 0 };\n    this.color = "#00ff00";\n  }\n}`,
+        'world.js': `// World Settings\nconsole.log("World Loaded");`,
+        'game.js': `// Entry Point`
     });
-    
+
     const [activeFile, setActiveFile] = useState('player.js');
-    const [viewportProps, setViewportProps] = useState({ x: 0, y: 2.9, z: 0 });
+    const canvasRef = useRef(null);
+    const sceneRef = useRef(null);
+    const cubeRef = useRef(null);
 
-    // Handle code changes for the SPECIFIC active file
-    const handleEditorChange = (value) => {
-        setFiles(prev => ({
-            ...prev,
-            [activeFile]: value
-        }));
-    };
+    // 1. Setup the Custom Canvas (Three.js)
+    useEffect(() => {
+        if (!canvasRef.current) return;
 
-    // 2. RUN FUNCTIONALITY: Executes the current code
-    const runProject = async () => {
-        console.log(`🚀 Running ${activeFile}...`);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, canvasRef.current.clientWidth / 200, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        
+        renderer.setSize(canvasRef.current.clientWidth, 200);
+        canvasRef.current.appendChild(renderer.domElement);
+
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+        cubeRef.current = cube;
+
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(2, 2, 5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        camera.position.z = 5;
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        return () => {
+            renderer.dispose();
+            if (canvasRef.current) canvasRef.current.innerHTML = "";
+        };
+    }, []);
+
+    // 2. RUN SCRIPT: Makes it functional
+    const runScript = async () => {
         try {
-            // Create a blob URL to run the code as a module
             const blob = new Blob([files[activeFile]], { type: 'application/javascript' });
             const url = URL.createObjectURL(blob);
-            
-            // Dynamic import
             const module = await import(/* @vite-ignore */ url);
             
             if (module.Player) {
-                const testPlayer = new module.Player();
-                // Update viewport based on code instantiation
-                setViewportProps(testPlayer.position);
-                alert("Script executed successfully! Check console.");
+                const p = new module.Player();
+                // Dynamically update the 3D model in the viewport
+                if (cubeRef.current) {
+                    cubeRef.current.position.set(p.position.x, p.position.y, p.position.z);
+                    cubeRef.current.material.color.set(p.color);
+                }
             }
-            
             URL.revokeObjectURL(url);
         } catch (err) {
-            console.error("Execution Error:", err);
-            alert("Error running script: " + err.message);
+            console.error("Script Error:", err);
         }
     };
 
-    const saveProject = () => {
-        localStorage.setItem('elge_project', JSON.stringify(files));
-        alert("Project Saved Local");
+    const handleEditorChange = (value) => {
+        // Only update the active file's code
+        setFiles(prev => ({ ...prev, [activeFile]: value }));
     };
 
     return (
-        <div className="elge-editor-container" style={{ display: 'flex', height: '100vh', background: '#1e1e1e', color: 'white' }}>
+        <div className="elge-editor" style={{ display: 'flex', height: '100vh', background: '#111', color: '#fff' }}>
             {/* Sidebar */}
-            <div className="sidebar" style={{ width: '200px', borderRight: '1px solid #333', padding: '10px' }}>
-                <h3>📁 Files</h3>
-                {Object.keys(files).map(fileName => (
+            <div style={{ width: '200px', borderRight: '1px solid #333', padding: '10px' }}>
+                <h4 style={{ color: '#888' }}>📁 PROJECT</h4>
+                {Object.keys(files).map(f => (
                     <div 
-                        key={fileName}
-                        onClick={() => setActiveFile(fileName)}
+                        key={f} 
+                        onClick={() => setActiveFile(f)}
                         style={{ 
                             padding: '8px', 
                             cursor: 'pointer', 
-                            background: activeFile === fileName ? '#333' : 'transparent',
-                            borderRadius: '4px'
+                            background: activeFile === f ? '#222' : 'transparent',
+                            color: activeFile === f ? '#4caf50' : '#ccc'
                         }}
                     >
-                        📄 {fileName}
+                        {activeFile === f ? '● ' : '○ '}{f}
                     </div>
                 ))}
-                <button onClick={() => alert('New file logic here')} style={{ marginTop: '10px' }}>+ New File</button>
             </div>
 
-            {/* Main Editor Section */}
-            <div className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div className="toolbar" style={{ padding: '10px', background: '#252526', display: 'flex', gap: '10px' }}>
-                    <button onClick={saveProject} style={{ background: '#444' }}>💾 Save</button>
-                    <button onClick={runProject} style={{ background: '#2d7a3d', color: 'white' }}>▶️ Run</button>
+            {/* Editor Area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '10px', background: '#1e1e1e', borderBottom: '1px solid #333' }}>
+                    <button onClick={runScript} style={{ background: '#4caf50', border: 'none', color: 'white', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer' }}>
+                        ▶ Run Script
+                    </button>
                 </div>
-
                 <div style={{ flex: 1 }}>
                     <Editor
                         height="100%"
                         theme="vs-dark"
-                        path={activeFile} // Tells Monaco this is a new "model"
-                        defaultLanguage="javascript"
+                        language="javascript"
+                        path={activeFile} // CRITICAL: This stops code from mirroring
                         value={files[activeFile]}
                         onChange={handleEditorChange}
                     />
                 </div>
             </div>
 
-            {/* 3D Viewport & Properties */}
-            <div className="inspector" style={{ width: '300px', borderLeft: '1px solid #333', padding: '15px' }}>
-                <h3>3D Viewport</h3>
-                <div style={{ height: '200px', background: '#000', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* Placeholder for Three.js Canvas */}
-                    <div style={{ color: '#555' }}>[ 3D Render View ]</div>
-                </div>
-
-                <h4>Properties</h4>
-                <div className="prop-group">
-                    <label>Position X</label>
-                    <input type="number" value={viewportProps.x} readOnly />
-                    <label>Position Y</label>
-                    <input type="number" value={viewportProps.y} readOnly />
-                    <label>Position Z</label>
-                    <input type="number" value={viewportProps.z} readOnly />
+            {/* 3D Viewport Area */}
+            <div style={{ width: '300px', borderLeft: '1px solid #333', padding: '10px', background: '#111' }}>
+                <h4>3D Viewport</h4>
+                <div ref={canvasRef} style={{ width: '100%', height: '200px', background: '#000', borderRadius: '4px' }} />
+                <div style={{ marginTop: '20px' }}>
+                    <h5 style={{ color: '#888' }}>Live Properties</h5>
+                    <p style={{ fontSize: '12px' }}>Editing: <strong>{activeFile}</strong></p>
+                    {/* These would link to your existing Transform UI */}
                 </div>
             </div>
         </div>
