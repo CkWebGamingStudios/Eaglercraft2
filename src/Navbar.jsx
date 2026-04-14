@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import "./pages/home.css";
+import "./pages/style/home.css";
 
 export default function Navbar({ onSignOut }) {
   return (
