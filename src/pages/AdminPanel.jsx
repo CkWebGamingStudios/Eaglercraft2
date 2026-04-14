@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import "./admin.css";
+import "./style/admin.css";
 
 async function api(path, options = {}) {
   const res = await fetch(`/api/admin${path}`, {
