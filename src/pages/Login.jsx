@@ -1,4 +1,4 @@
-import "./login.css";
+import "./style/login.css";
 
 export default function Login({ onGoogle, onGithub, authError }) {
   return (
