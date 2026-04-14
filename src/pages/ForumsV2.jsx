@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import "./forumsv2.css";
+import "./style/forumsv2.css";
 
 export default function ForumsV2({ profile }) {
   const [messages, setMessages] = useState([]);
