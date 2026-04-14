@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { ELGE } from "../elge/master/ELGE.js";
-import "./play.css";
+import "./style/play.css";
 
 export default function Play() {
   const canvasRef = useRef(null);
