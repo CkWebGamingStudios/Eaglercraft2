@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchAllUsers } from "../utils/authHeader.js";
-import "./user-profile.css";
+import "./style/user-profile.css";
 
 const FALLBACK_AVATAR = "https://api.dicebear.com/9.x/bottts/svg?seed=EaglerUsers";
 
