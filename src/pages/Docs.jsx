@@ -1,4 +1,4 @@
-import "./user-profile.css";
+import "./style/user-profile.css";
 
 export default function Docs() {
   return (
