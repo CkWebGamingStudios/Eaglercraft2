@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './forums.css';
+import './style/forums.css';
 
 const Forums = () => {
   const [messages, setMessages] = useState([]);
