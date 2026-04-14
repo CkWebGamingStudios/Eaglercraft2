@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearCachedProfile, deleteAuthAccount, saveCachedProfile, updateAuthProfile } from "../utils/authHeader.js";
-import "./user-profile.css";
+import "./style/user-profile.css";
 
 export default function UserSettings({ profile, onProfileUpdated }) {
   const navigate = useNavigate();
