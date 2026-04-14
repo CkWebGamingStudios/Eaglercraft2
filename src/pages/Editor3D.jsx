@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import './editor.css';
+import './style/editor.css';
 
 export default function GameEditor() {
   const [activeFile, setActiveFile] = useState(null);
