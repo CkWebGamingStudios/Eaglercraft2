@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import "./forumsv2.css";
+import "./style/forumsv2.css";
 
 const FALLBACK_AVATAR = "https://api.dicebear.com/9.x/bottts/svg?seed=ModditDev";
 
