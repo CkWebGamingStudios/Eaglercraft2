@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import "./home.css";
+import "./style/home.css";
 
 const navItems = [
   { key: "dashboard", label: "Dashboard" },
