@@ -4,9 +4,9 @@ import './style/editor.css';
 export default function GameEditor() {
   const [activeFile, setActiveFile] = useState(null);
   const [files, setFiles] = useState({
-    'game.js': `// Main Game Logic
-import { Player } from './player.js';
-import { World } from './world.js';
+    '../elge/editor/game.js': `// Main Game Logic
+import { Player } from '../elge/editor/player.js';
+import { World } from '../elge/editor/world.js';
 
 class Game {
   constructor() {
