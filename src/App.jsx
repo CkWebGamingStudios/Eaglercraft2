@@ -21,6 +21,7 @@ const Moddit = lazy(() => import("./pages/Moddit.jsx"));
 const Play = lazy(() => import("./pages/Play.jsx"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 const Editor3D = lazy(() => import("./pages/Editor3D.jsx"));
+const Store = lazy(() => import("./pages/Store.jsx"));
 
 const AUTH_PENDING_TEXT = "Checking account session...";
 
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="/users/:uid" element={<UserProfile />} />
         <Route path="/docs" element={<Docs />} />
         <Route path="/moddit" element={<Moddit profile={profile} />} />
+        <Route path="/store" element={<Store />} />
         <Route path="/play" element={<Play />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/editor" element={<Editor3D />} />
