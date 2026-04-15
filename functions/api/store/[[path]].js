@@ -37,7 +37,7 @@ async function commitToRepo(env, game) {
     headers: {
       Authorization: `Bearer ${env.GAMES_REPO_PAT}`,
       Accept: "application/vnd.github+json",
-      "User-Agent': 'Eaglercraft2/1.0",
+      "User-Agent": "Eaglercraft2/1.0",
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
